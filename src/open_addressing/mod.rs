@@ -2,6 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{BuildHasher, BuildHasherDefault};
 use std::marker::PhantomData;
 use std::{hash::Hash, ptr::NonNull};
+use std::fmt::Debug;
 
 use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, Remove, START_MASK};
 
@@ -34,6 +35,29 @@ impl<K: PartialEq + Hash + Clone, V, E: Entry<K, EntryBucket<K, V>>, R: Remove<K
 {
     pub fn new() -> Self {
         Self::with_hasher(BuildHasherDefault::<DefaultHasher>::default())
+    }
+}
+
+impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V>>, R: Remove<K>>
+    OpenAddressingHashTable<K, V, E, R>
+{
+    pub fn print(&self) {
+        let size = self.hashtable.inner.mask + 1;
+
+        println!("-------------------- OpenAddressingHashTable --------------------");
+        println!("size: {}", size);
+
+        for i in 0..size {
+            print!("{:#08X}: ", i);
+            let bucket = self.hashtable.inner.buckets.as_ptr() as *const EntryBucket<K, V>;
+
+            match unsafe { &*bucket.add(i) } {
+                EntryBucket::None => println!("None"),
+                EntryBucket::Some(entry) => println!("{:#16X}, ({:?}, {:?})", entry.hash, entry.key, entry.value),
+                EntryBucket::Tombstone => println!("TOMESTONE"),
+            }
+        }
+        println!("-----------------------------------------------------------------");
     }
 }
 

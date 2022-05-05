@@ -89,7 +89,7 @@ pub struct LinearProbingRemovalTombstone {}
 
 impl<K: PartialEq> Remove<K> for LinearProbingRemovalTombstone {
     fn default() -> Self {
-        todo!()
+        Self {}
     }
 
     fn remove<T>(&self, table: &mut RawHashTable, key: &K, hash: u64) -> Result<T, ()> {
