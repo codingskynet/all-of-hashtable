@@ -15,7 +15,7 @@ pub struct RawHashTable {
 struct HashTable<K: Hash + PartialEq, V, S: BuildHasher, E: Entry<K, B>, R: Remove<K>, B> {
     hasher: S,
     inner: RawHashTable,
-    entry: E,
+    entry: Box<E>,
     _marker: PhantomData<(K, V, E, R, B)>,
 }
 
@@ -26,6 +26,7 @@ pub enum EntryResult<T> {
 }
 
 pub trait Entry<K: PartialEq, B> {
+    fn default() -> Self;
     fn entry(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<B>;
 }
 
