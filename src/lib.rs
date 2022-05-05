@@ -1,6 +1,10 @@
 #![feature(build_hasher_simple_hash_one)]
 
-use std::{hash::{BuildHasher, Hash}, marker::PhantomData, ptr::NonNull};
+use std::{
+    hash::{BuildHasher, Hash},
+    marker::PhantomData,
+    ptr::NonNull,
+};
 
 pub mod chaining;
 pub mod open_addressing;
@@ -16,6 +20,7 @@ struct HashTable<K: Hash + PartialEq, V, S: BuildHasher, E: Entry<K, B>, R: Remo
     hasher: S,
     inner: RawHashTable,
     entry: Box<E>,
+    remove: Box<R>,
     _marker: PhantomData<(K, V, E, R, B)>,
 }
 
@@ -31,6 +36,7 @@ pub trait Entry<K: PartialEq, B> {
 }
 
 pub trait Remove<K: PartialEq> {
+    fn default() -> Self;
     fn remove<T>(&self, table: &mut RawHashTable, key: &K, hash: u64) -> Result<T, ()>;
 }
 
