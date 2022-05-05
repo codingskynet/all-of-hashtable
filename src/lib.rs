@@ -16,7 +16,7 @@ pub struct RawHashTable {
     mask: usize,
 }
 
-struct HashTable<K: Hash + PartialEq, V, S: BuildHasher, E: Entry<K, B>, R: Remove<K>, B> {
+struct HashTable<K: Hash + PartialEq, V, S: BuildHasher, E: Entry<K, B>, R: Remove<K, B>, B> {
     hasher: S,
     inner: RawHashTable,
     entry: Box<E>,
@@ -35,9 +35,9 @@ pub trait Entry<K: PartialEq, B> {
     fn entry(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<B>;
 }
 
-pub trait Remove<K: PartialEq> {
+pub trait Remove<K: PartialEq, B> {
     fn default() -> Self;
-    fn remove<T>(&self, table: &mut RawHashTable, key: &K, hash: u64) -> Result<T, ()>;
+    fn remove(&self, table: &mut RawHashTable, key: &K, hash: u64) -> Result<B, ()>;
 }
 
 pub trait HashMap<K, V, S> {

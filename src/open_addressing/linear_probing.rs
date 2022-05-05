@@ -1,6 +1,3 @@
-use std::alloc::alloc;
-use std::alloc::Layout;
-use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 use crate::Entry;
@@ -10,37 +7,13 @@ use crate::Remove;
 
 use super::EntryBucket;
 
-impl<K, V> EntryBucket<K, V> {
-    pub fn alloc(size: usize) -> *mut Self {
-        let layout = match Layout::array::<Self>(size) {
-            Ok(layout) => layout,
-            Err(_) => panic!("Cannot initialize EntryBuckets"),
-        };
-
-        // allocate and init with None
-        unsafe {
-            let raw = alloc(layout) as *mut Self;
-
-            for i in 0..size {
-                *raw.add(i) = EntryBucket::None;
-            }
-
-            raw
-        }
-    }
-}
-
-pub struct LinearProbing<K, V> {
+pub struct LinearProbing {
     step: usize,
-    _marker: PhantomData<(K, V)>,
 }
 
-impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing<K, V> {
+impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing {
     fn default() -> Self {
-        LinearProbing {
-            step: 1,
-            _marker: PhantomData,
-        }
+        LinearProbing { step: 1 }
     }
 
     fn entry(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<EntryBucket<K, V>> {
@@ -53,18 +26,19 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing<K, V> {
 
         loop {
             match unsafe { &*bucket } {
-                EntryBucket::None | EntryBucket::Tombstone => {
+                EntryBucket::None => {
                     return EntryResult::None(NonNull::new(bucket as *mut _).unwrap());
                 }
+                EntryBucket::Tombstone => {} // just skip this bucket
                 EntryBucket::Some(entry_bucket) => {
                     if entry_bucket.hash == hash && entry_bucket.key == *key {
                         return EntryResult::Some(NonNull::new(bucket as *mut _).unwrap());
                     }
-
-                    index = (index + self.step) & table.mask;
-                    unsafe { bucket = bucket.add(index) }
                 }
             }
+
+            index = (index + self.step) & table.mask;
+            unsafe { bucket = bucket.add(index) }
 
             if bucket == initial_bucket {
                 return EntryResult::Full;
@@ -73,26 +47,40 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing<K, V> {
     }
 }
 
-pub struct LinearProbingRemoval {}
+pub struct LinearProbingRemoval {
+    step: usize,
+}
 
-impl<K: PartialEq> Remove<K> for LinearProbingRemoval {
+impl<K: PartialEq, V> Remove<K, EntryBucket<K, V>> for LinearProbingRemoval {
     fn default() -> Self {
-        todo!()
+        LinearProbingRemoval { step: 1 }
     }
 
-    fn remove<T>(&self, table: &mut RawHashTable, key: &K, hash: u64) -> Result<T, ()> {
+    fn remove(
+        &self,
+        table: &mut RawHashTable,
+        key: &K,
+        hash: u64,
+    ) -> Result<EntryBucket<K, V>, ()> {
         todo!()
     }
 }
 
-pub struct LinearProbingRemovalTombstone {}
+pub struct LinearProbingRemovalTombstone {
+    step: usize,
+}
 
-impl<K: PartialEq> Remove<K> for LinearProbingRemovalTombstone {
+impl<K: PartialEq, V> Remove<K, EntryBucket<K, V>> for LinearProbingRemovalTombstone {
     fn default() -> Self {
-        Self {}
+        LinearProbingRemovalTombstone { step: 1 }
     }
 
-    fn remove<T>(&self, table: &mut RawHashTable, key: &K, hash: u64) -> Result<T, ()> {
+    fn remove(
+        &self,
+        table: &mut RawHashTable,
+        key: &K,
+        hash: u64,
+    ) -> Result<EntryBucket<K, V>, ()> {
         todo!()
     }
 }

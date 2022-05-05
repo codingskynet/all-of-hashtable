@@ -11,7 +11,7 @@ fn test_open_addressing_hashtable() {
     let mut table = OpenAddressingHashTable::<
         String,
         u64,
-        LinearProbing<_, _>,
+        LinearProbing,
         LinearProbingRemovalTombstone,
     >::new();
     assert_eq!(table.insert("test".to_string(), 123), Ok(()));

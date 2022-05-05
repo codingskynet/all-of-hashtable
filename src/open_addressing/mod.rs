@@ -1,8 +1,9 @@
+use std::alloc::{alloc, Layout};
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::Debug;
 use std::hash::{BuildHasher, BuildHasherDefault};
 use std::marker::PhantomData;
 use std::{hash::Hash, ptr::NonNull};
-use std::fmt::Debug;
 
 use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, Remove, START_MASK};
 
@@ -20,26 +21,53 @@ pub enum EntryBucket<K, V> {
     Tombstone,
 }
 
-pub struct OpenAddressingHashTable<
+impl<K, V> EntryBucket<K, V> {
+    pub fn alloc(size: usize) -> *mut Self {
+        let layout = match Layout::array::<Self>(size) {
+            Ok(layout) => layout,
+            Err(_) => panic!("Cannot initialize EntryBuckets"),
+        };
+
+        // allocate and init with None
+        unsafe {
+            let raw = alloc(layout) as *mut Self;
+
+            for i in 0..size {
+                *raw.add(i) = EntryBucket::None;
+            }
+
+            raw
+        }
+    }
+}
+
+pub struct OpenAddressingHashTable<K, V, E, R, S = BuildHasherDefault<DefaultHasher>>
+where
     K: PartialEq + Hash + Clone,
-    V,
     E: Entry<K, EntryBucket<K, V>>,
-    R: Remove<K>,
-    S: BuildHasher = BuildHasherDefault<DefaultHasher>,
-> {
+    R: Remove<K, EntryBucket<K, V>>,
+    S: BuildHasher,
+{
     hashtable: HashTable<K, V, S, E, R, EntryBucket<K, V>>,
 }
 
-impl<K: PartialEq + Hash + Clone, V, E: Entry<K, EntryBucket<K, V>>, R: Remove<K>>
-    OpenAddressingHashTable<K, V, E, R>
+impl<K, V, E, R> OpenAddressingHashTable<K, V, E, R>
+where
+    K: PartialEq + Hash + Clone,
+    E: Entry<K, EntryBucket<K, V>>,
+    R: Remove<K, EntryBucket<K, V>>,
 {
     pub fn new() -> Self {
         Self::with_hasher(BuildHasherDefault::<DefaultHasher>::default())
     }
 }
 
-impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V>>, R: Remove<K>>
-    OpenAddressingHashTable<K, V, E, R>
+impl<
+        K: PartialEq + Hash + Clone + Debug,
+        V: Debug,
+        E: Entry<K, EntryBucket<K, V>>,
+        R: Remove<K, EntryBucket<K, V>>,
+    > OpenAddressingHashTable<K, V, E, R>
 {
     pub fn print(&self) {
         let size = self.hashtable.inner.mask + 1;
@@ -53,7 +81,9 @@ impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V
 
             match unsafe { &*bucket.add(i) } {
                 EntryBucket::None => println!("None"),
-                EntryBucket::Some(entry) => println!("{:#16X}, ({:?}, {:?})", entry.hash, entry.key, entry.value),
+                EntryBucket::Some(entry) => {
+                    println!("{:#16X}, ({:?}, {:?})", entry.hash, entry.key, entry.value)
+                }
                 EntryBucket::Tombstone => println!("TOMESTONE"),
             }
         }
@@ -61,13 +91,12 @@ impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V
     }
 }
 
-impl<
-        K: PartialEq + Hash + Clone,
-        V,
-        E: Entry<K, EntryBucket<K, V>>,
-        R: Remove<K>,
-        S: BuildHasher,
-    > OpenAddressingHashTable<K, V, E, R, S>
+impl<K, V, E, R, S> OpenAddressingHashTable<K, V, E, R, S>
+where
+    K: PartialEq + Hash + Clone,
+    E: Entry<K, EntryBucket<K, V>>,
+    R: Remove<K, EntryBucket<K, V>>,
+    S: BuildHasher,
 {
     pub fn new_with_properties(hasher: S, entry: E, remove: R) -> Self {
         let hashtable = HashTable {
@@ -86,13 +115,12 @@ impl<
     }
 }
 
-impl<
-        K: PartialEq + Hash + Clone,
-        V,
-        E: Entry<K, EntryBucket<K, V>>,
-        R: Remove<K>,
-        S: BuildHasher,
-    > HashMap<K, V, S> for OpenAddressingHashTable<K, V, E, R, S>
+impl<K, V, E, R, S> HashMap<K, V, S> for OpenAddressingHashTable<K, V, E, R, S>
+where
+    K: PartialEq + Hash + Clone,
+    E: Entry<K, EntryBucket<K, V>>,
+    R: Remove<K, EntryBucket<K, V>>,
+    S: BuildHasher,
 {
     fn with_hasher(hasher: S) -> Self {
         let hashtable = HashTable {
