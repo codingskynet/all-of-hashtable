@@ -1,30 +1,39 @@
-use std::{hash::{BuildHasher, Hash, Hasher}, marker::PhantomData, ptr::NonNull};
+#![feature(build_hasher_simple_hash_one)]
+
+use std::{hash::{BuildHasher, Hash}, marker::PhantomData, ptr::NonNull};
 
 pub mod chaining;
 pub mod open_addressing;
 
 const START_MASK: usize = 0b111;
 
-struct RawHashTable {
+pub struct RawHashTable {
     buckets: NonNull<u8>,
     mask: usize,
 }
 
-struct HashTable<K: Hash, V, S: BuildHasher, E: Entry<K>, R: Remove<K>> {
+struct HashTable<K: Hash + PartialEq, V, S: BuildHasher, E: Entry<K, B>, R: Remove<K>, B> {
     hasher: S,
     inner: RawHashTable,
-    _marker: PhantomData<(K, V, E, R)>,
+    entry: E,
+    _marker: PhantomData<(K, V, E, R, B)>,
 }
 
-trait Entry<K: Hash> {
-    fn entry<T>(table: &RawHashTable, key: &K, index: u64) -> NonNull<T>;
+pub enum EntryResult<T> {
+    None(NonNull<T>),
+    Some(NonNull<T>),
+    Full, // the all of available access entries are full.
 }
 
-trait Remove<K: Hash> {
-    fn remove<T>(table: &mut RawHashTable, key: &K, index: u64) -> T;
+pub trait Entry<K: PartialEq, B> {
+    fn entry(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<B>;
 }
 
-trait HashMap<K, V, S> {
+pub trait Remove<K: PartialEq> {
+    fn remove<T>(&self, table: &mut RawHashTable, key: &K, hash: u64) -> Result<T, ()>;
+}
+
+pub trait HashMap<K, V, S> {
     fn with_hasher(hasher: S) -> Self;
     fn insert(&mut self, key: K, value: V) -> Result<(), V>;
     fn lookup(&self, key: &K) -> Option<&V>;
