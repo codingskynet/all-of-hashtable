@@ -4,8 +4,9 @@ use std::fmt::Debug;
 use std::hash::{BuildHasher, BuildHasherDefault};
 use std::marker::PhantomData;
 use std::{hash::Hash, ptr::NonNull};
+use std::{mem, ptr};
 
-use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, Remove, START_MASK};
+use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, INITIAL_SIZE, LOAD_FACTOR};
 
 pub mod linear_probing;
 
@@ -41,33 +42,27 @@ impl<K, V> EntryBucket<K, V> {
     }
 }
 
-pub struct OpenAddressingHashTable<K, V, E, R, S = BuildHasherDefault<DefaultHasher>>
+pub struct OpenAddressingHashTable<K, V, E, S = BuildHasherDefault<DefaultHasher>>
 where
     K: PartialEq + Hash + Clone,
     E: Entry<K, EntryBucket<K, V>>,
-    R: Remove<K, EntryBucket<K, V>>,
     S: BuildHasher,
 {
-    hashtable: HashTable<K, V, S, E, R, EntryBucket<K, V>>,
+    hashtable: HashTable<K, V, S, E, EntryBucket<K, V>>,
 }
 
-impl<K, V, E, R> OpenAddressingHashTable<K, V, E, R>
+impl<K, V, E> OpenAddressingHashTable<K, V, E>
 where
     K: PartialEq + Hash + Clone,
     E: Entry<K, EntryBucket<K, V>>,
-    R: Remove<K, EntryBucket<K, V>>,
 {
     pub fn new() -> Self {
         Self::with_hasher(BuildHasherDefault::<DefaultHasher>::default())
     }
 }
 
-impl<
-        K: PartialEq + Hash + Clone + Debug,
-        V: Debug,
-        E: Entry<K, EntryBucket<K, V>>,
-        R: Remove<K, EntryBucket<K, V>>,
-    > OpenAddressingHashTable<K, V, E, R>
+impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V>>>
+    OpenAddressingHashTable<K, V, E>
 {
     pub fn print(&self) {
         let size = self.hashtable.inner.mask + 1;
@@ -91,74 +86,95 @@ impl<
     }
 }
 
-impl<K, V, E, R, S> OpenAddressingHashTable<K, V, E, R, S>
+impl<K, V, E, S> OpenAddressingHashTable<K, V, E, S>
 where
     K: PartialEq + Hash + Clone,
     E: Entry<K, EntryBucket<K, V>>,
-    R: Remove<K, EntryBucket<K, V>>,
     S: BuildHasher,
 {
-    pub fn new_with_properties(hasher: S, entry: E, remove: R) -> Self {
+    pub fn new_with_properties(hasher: S, entry: E, initial_size: usize, load_factor: f32) -> Self {
         let hashtable = HashTable {
             hasher,
             inner: RawHashTable {
-                buckets: NonNull::new(EntryBucket::<K, V>::alloc(START_MASK + 1) as *mut u8)
-                    .unwrap(),
-                mask: START_MASK,
+                buckets: NonNull::new(EntryBucket::<K, V>::alloc(initial_size) as *mut u8).unwrap(),
+                mask: initial_size - 1,
             },
+            count: 0,
+            load_factor,
             entry: Box::new(entry),
-            remove: Box::new(remove),
             _marker: PhantomData,
         };
 
         Self { hashtable }
     }
+
+    fn insert_bucket(&mut self, entry: Bucket<K, V>) -> Result<(), V> {
+        let bucket = self
+            .hashtable
+            .entry
+            .entry(&self.hashtable.inner, &entry.key, entry.hash);
+
+        match bucket {
+            EntryResult::None(mut ptr) => {
+                unsafe { *ptr.as_mut() = EntryBucket::Some(entry) };
+                self.hashtable.count += 1;
+                Ok(())
+            }
+            EntryResult::Some(_) => Err(*entry.value),
+            EntryResult::Full => {
+                self.resize((self.hashtable.inner.mask + 1) << 1);
+                self.insert_bucket(entry)
+            }
+        }
+    }
+
+    fn resize(&mut self, new_size: usize) {
+        let new_inner = RawHashTable {
+            buckets: NonNull::new(EntryBucket::<K, V>::alloc(new_size) as *mut u8).unwrap(),
+            mask: new_size - 1,
+        };
+
+        let mut old_inner = mem::replace(&mut self.hashtable.inner, new_inner);
+
+        for index in 0..(old_inner.mask + 1) {
+            let entry_bucket = unsafe {
+                &mut *(old_inner.buckets.as_mut() as *mut u8 as *mut EntryBucket<K, V>).add(index)
+            };
+
+            if let EntryBucket::Some(bucket) = entry_bucket {
+                let bucket = unsafe { ptr::read(bucket) };
+                assert!(self.insert_bucket(bucket).is_ok());
+            }
+        }
+    }
 }
 
-impl<K, V, E, R, S> HashMap<K, V, S> for OpenAddressingHashTable<K, V, E, R, S>
+impl<K, V, E, S> HashMap<K, V, S> for OpenAddressingHashTable<K, V, E, S>
 where
     K: PartialEq + Hash + Clone,
     E: Entry<K, EntryBucket<K, V>>,
-    R: Remove<K, EntryBucket<K, V>>,
     S: BuildHasher,
 {
     fn with_hasher(hasher: S) -> Self {
-        let hashtable = HashTable {
-            hasher,
-            inner: RawHashTable {
-                buckets: NonNull::new(EntryBucket::<K, V>::alloc(START_MASK + 1) as *mut u8)
-                    .unwrap(),
-                mask: START_MASK,
-            },
-            entry: Box::new(E::default()),
-            remove: Box::new(R::default()),
-            _marker: PhantomData,
-        };
-
-        Self { hashtable }
+        Self::new_with_properties(hasher, E::default(), INITIAL_SIZE, LOAD_FACTOR)
     }
 
     fn insert(&mut self, key: K, value: V) -> Result<(), V> {
         let hash = self.hashtable.hasher.hash_one(key.clone());
 
-        let entry = Bucket {
+        let bucket = Bucket {
             key: key.clone(),
             hash,
             value: Box::new(value),
         };
 
-        let bucket = self
-            .hashtable
-            .entry
-            .entry(&self.hashtable.inner, &key, hash);
-        match bucket {
-            EntryResult::None(mut ptr) => {
-                unsafe { *ptr.as_mut() = EntryBucket::Some(entry) };
-                Ok(())
-            }
-            EntryResult::Some(_) => Err(*entry.value),
-            EntryResult::Full => todo!("The table is full!"),
+        if self.hashtable.count
+            >= ((self.hashtable.inner.mask + 1) as f32 * self.hashtable.load_factor) as usize
+        {
+            self.resize((self.hashtable.inner.mask + 1) << 1);
         }
+
+        self.insert_bucket(bucket)
     }
 
     fn lookup(&self, key: &K) -> Option<&V> {

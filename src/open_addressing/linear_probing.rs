@@ -3,7 +3,6 @@ use std::ptr::NonNull;
 use crate::Entry;
 use crate::EntryResult;
 use crate::RawHashTable;
-use crate::Remove;
 
 use super::EntryBucket;
 
@@ -44,43 +43,5 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing {
                 return EntryResult::Full;
             }
         }
-    }
-}
-
-pub struct LinearProbingRemoval {
-    step: usize,
-}
-
-impl<K: PartialEq, V> Remove<K, EntryBucket<K, V>> for LinearProbingRemoval {
-    fn default() -> Self {
-        LinearProbingRemoval { step: 1 }
-    }
-
-    fn remove(
-        &self,
-        table: &mut RawHashTable,
-        key: &K,
-        hash: u64,
-    ) -> Result<EntryBucket<K, V>, ()> {
-        todo!()
-    }
-}
-
-pub struct LinearProbingRemovalTombstone {
-    step: usize,
-}
-
-impl<K: PartialEq, V> Remove<K, EntryBucket<K, V>> for LinearProbingRemovalTombstone {
-    fn default() -> Self {
-        LinearProbingRemovalTombstone { step: 1 }
-    }
-
-    fn remove(
-        &self,
-        table: &mut RawHashTable,
-        key: &K,
-        hash: u64,
-    ) -> Result<EntryBucket<K, V>, ()> {
-        todo!()
     }
 }

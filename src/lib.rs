@@ -9,35 +9,32 @@ use std::{
 pub mod chaining;
 pub mod open_addressing;
 
-const START_MASK: usize = 0b111;
+const INITIAL_SIZE: usize = 8;
+const LOAD_FACTOR: f32 = 0.7;
 
 pub struct RawHashTable {
     buckets: NonNull<u8>,
     mask: usize,
 }
 
-struct HashTable<K: Hash + PartialEq, V, S: BuildHasher, E: Entry<K, B>, R: Remove<K, B>, B> {
+struct HashTable<K: Hash + PartialEq, V, S: BuildHasher, E: Entry<K, B>, B> {
     hasher: S,
     inner: RawHashTable,
+    count: usize,
+    load_factor: f32,
     entry: Box<E>,
-    remove: Box<R>,
-    _marker: PhantomData<(K, V, E, R, B)>,
+    _marker: PhantomData<(K, V, E, B)>,
 }
 
 pub enum EntryResult<T> {
     None(NonNull<T>),
     Some(NonNull<T>),
-    Full, // the all of available access entries are full.
+    Full, // the all of available access entries are full(Some or Tombstone)
 }
 
 pub trait Entry<K: PartialEq, B> {
     fn default() -> Self;
     fn entry(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<B>;
-}
-
-pub trait Remove<K: PartialEq, B> {
-    fn default() -> Self;
-    fn remove(&self, table: &mut RawHashTable, key: &K, hash: u64) -> Result<B, ()>;
 }
 
 pub trait HashMap<K, V, S> {

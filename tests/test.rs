@@ -1,21 +1,20 @@
 use all_of_hashtable::{
-    open_addressing::{
-        linear_probing::{LinearProbing, LinearProbingRemovalTombstone},
-        OpenAddressingHashTable,
-    },
+    open_addressing::{linear_probing::LinearProbing, OpenAddressingHashTable},
     HashMap,
 };
 
 #[test]
 fn test_open_addressing_hashtable() {
-    let mut table = OpenAddressingHashTable::<
-        String,
-        u64,
-        LinearProbing,
-        LinearProbingRemovalTombstone,
-    >::new();
-    assert_eq!(table.insert("test".to_string(), 123), Ok(()));
-    assert_eq!(table.lookup(&"test".to_string()), Some(&123));
+    let mut table = OpenAddressingHashTable::<u64, u64, LinearProbing>::new();
+
+    for i in 0..1000 {
+        assert_eq!(table.insert(i, i), Ok(()));
+        table.print();
+    }
+
+    for i in 0..1000 {
+        assert_eq!(table.lookup(&i), Some(&i));
+    }
 
     table.print();
 }
