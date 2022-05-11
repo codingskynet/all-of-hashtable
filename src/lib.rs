@@ -10,7 +10,7 @@ pub mod chaining;
 pub mod open_addressing;
 
 const INITIAL_SIZE: usize = 8;
-const LOAD_FACTOR: f32 = 0.7;
+const LOAD_FACTOR: f32 = 0.1;
 
 pub struct RawHashTable {
     buckets: NonNull<u8>,

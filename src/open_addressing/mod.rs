@@ -1,4 +1,4 @@
-use std::alloc::{alloc, Layout};
+use std::alloc::{alloc, dealloc, Layout};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
 use std::hash::{BuildHasher, BuildHasherDefault};
@@ -38,6 +38,17 @@ impl<K, V> EntryBucket<K, V> {
             }
 
             raw
+        }
+    }
+
+    pub fn dealloc(ptr: NonNull<u8>, size: usize) {
+        let layout = match Layout::array::<Self>(size) {
+            Ok(layout) => layout,
+            Err(_) => panic!("Cannot initialize EntryBuckets"),
+        };
+
+        unsafe {
+            dealloc(ptr.as_ptr(), layout);
         }
     }
 }
@@ -136,16 +147,18 @@ where
 
         let mut old_inner = mem::replace(&mut self.hashtable.inner, new_inner);
 
-        for index in 0..(old_inner.mask + 1) {
+        self.hashtable.count = 0;
+        for index in 0..=old_inner.mask {
             let entry_bucket = unsafe {
-                &mut *(old_inner.buckets.as_mut() as *mut u8 as *mut EntryBucket<K, V>).add(index)
+                mem::replace(&mut *((old_inner.buckets.as_mut() as *mut u8 as *mut EntryBucket<K, V>).add(index)), EntryBucket::None)
             };
 
             if let EntryBucket::Some(bucket) = entry_bucket {
-                let bucket = unsafe { ptr::read(bucket) };
                 assert!(self.insert_bucket(bucket).is_ok());
             }
         }
+
+        EntryBucket::<K, V>::dealloc(old_inner.buckets, old_inner.mask + 1);
     }
 }
 
@@ -168,6 +181,7 @@ where
             value: Box::new(value),
         };
 
+        println!("{}, {}", self.hashtable.count, self.hashtable.inner.mask + 1);
         if self.hashtable.count
             >= ((self.hashtable.inner.mask + 1) as f32 * self.hashtable.load_factor) as usize
         {

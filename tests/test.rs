@@ -9,7 +9,6 @@ fn test_open_addressing_hashtable() {
 
     for i in 0..1000 {
         assert_eq!(table.insert(i, i), Ok(()));
-        table.print();
     }
 
     for i in 0..1000 {

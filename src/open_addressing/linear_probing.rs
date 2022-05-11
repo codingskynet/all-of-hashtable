@@ -16,12 +16,11 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing {
     }
 
     fn entry(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<EntryBucket<K, V>> {
-        let mut index = hash as usize & table.mask;
+        let hash_index = hash as usize & table.mask;
+        let mut index = hash_index;
 
-        let initial_bucket =
-            unsafe { (table.buckets.as_ptr() as *const u8 as *const EntryBucket<K, V>).add(index) };
-
-        let mut bucket = initial_bucket;
+        let first_bucket = table.buckets.as_ptr() as *const u8 as *const EntryBucket<K, V>;
+        let mut bucket = unsafe { first_bucket.add(index) };
 
         loop {
             match unsafe { &*bucket } {
@@ -37,9 +36,9 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing {
             }
 
             index = (index + self.step) & table.mask;
-            unsafe { bucket = bucket.add(index) }
+            unsafe { bucket = first_bucket.add(index) }
 
-            if bucket == initial_bucket {
+            if index == hash_index {
                 return EntryResult::Full;
             }
         }
