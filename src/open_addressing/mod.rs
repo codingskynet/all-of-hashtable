@@ -34,7 +34,7 @@ impl<K, V> EntryBucket<K, V> {
             let raw = alloc(layout) as *mut Self;
 
             for i in 0..size {
-                *raw.add(i) = EntryBucket::None;
+                ptr::write(raw.add(i), EntryBucket::None);
             }
 
             raw
@@ -82,13 +82,13 @@ impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V
         println!("size: {}", size);
 
         for i in 0..size {
-            print!("{:#08X}: ", i);
+            print!("{:#010X}: ", i);
             let bucket = self.hashtable.inner.buckets.as_ptr() as *const EntryBucket<K, V>;
 
             match unsafe { &*bucket.add(i) } {
                 EntryBucket::None => println!("None"),
                 EntryBucket::Some(entry) => {
-                    println!("{:#16X}, ({:?}, {:?})", entry.hash, entry.key, entry.value)
+                    println!("{:#018X}, ({:?}, {:?})", entry.hash, entry.key, entry.value)
                 }
                 EntryBucket::Tombstone => println!("TOMESTONE"),
             }
@@ -145,12 +145,12 @@ where
             mask: new_size - 1,
         };
 
-        let mut old_inner = mem::replace(&mut self.hashtable.inner, new_inner);
+        let old_inner = mem::replace(&mut self.hashtable.inner, new_inner);
 
         self.hashtable.count = 0;
         for index in 0..=old_inner.mask {
             let entry_bucket = unsafe {
-                mem::replace(&mut *((old_inner.buckets.as_mut() as *mut u8 as *mut EntryBucket<K, V>).add(index)), EntryBucket::None)
+                ptr::read((old_inner.buckets.as_ptr() as *const EntryBucket<K, V>).add(index))
             };
 
             if let EntryBucket::Some(bucket) = entry_bucket {
@@ -181,7 +181,6 @@ where
             value: Box::new(value),
         };
 
-        println!("{}, {}", self.hashtable.count, self.hashtable.inner.mask + 1);
         if self.hashtable.count
             >= ((self.hashtable.inner.mask + 1) as f32 * self.hashtable.load_factor) as usize
         {
