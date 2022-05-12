@@ -8,7 +8,11 @@ use std::{mem, ptr};
 
 use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, INITIAL_SIZE, LOAD_FACTOR};
 
-pub mod linear_probing;
+mod linear_probing;
+mod quadratic_probing;
+
+pub use linear_probing::LinearProbing;
+pub use quadratic_probing::QuadraticProbing;
 
 pub struct Bucket<K, V> {
     key: K,

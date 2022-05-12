@@ -1,27 +1,20 @@
-use std::mem;
-use std::ptr::NonNull;
+use std::{ptr::NonNull, mem};
 
-use crate::Entry;
-use crate::EntryResult;
-use crate::RawHashTable;
+use crate::{Entry, EntryResult, RawHashTable};
 
 use super::EntryBucket;
 
-pub struct LinearProbing {
-    step: usize,
+pub struct QuadraticProbing {
     tombstone: bool,
 }
 
-impl Default for LinearProbing {
+impl Default for QuadraticProbing {
     fn default() -> Self {
-        Self {
-            step: 1,
-            tombstone: true,
-        }
+        Self { tombstone: true }
     }
 }
 
-impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing {
+impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for QuadraticProbing {
     fn lookup(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<EntryBucket<K, V>> {
         let hash_index = hash as usize & table.mask;
         let mut offset = 0;
@@ -42,8 +35,8 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing {
                 }
             }
 
-            offset += self.step;
-            let next_index = (hash_index + offset) & table.mask;
+            offset += 1;
+            let next_index = (hash_index + offset * offset) & table.mask;
 
             if next_index == hash_index {
                 return EntryResult::Full;
