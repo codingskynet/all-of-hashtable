@@ -1,3 +1,4 @@
+use std::mem;
 use std::ptr::NonNull;
 
 use crate::Entry;
@@ -8,14 +9,20 @@ use super::EntryBucket;
 
 pub struct LinearProbing {
     step: usize,
+    tombstone: bool,
+}
+
+impl Default for LinearProbing {
+    fn default() -> Self {
+        Self {
+            step: 1,
+            tombstone: true,
+        }
+    }
 }
 
 impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing {
-    fn default() -> Self {
-        LinearProbing { step: 1 }
-    }
-
-    fn entry(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<EntryBucket<K, V>> {
+    fn lookup(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<EntryBucket<K, V>> {
         let hash_index = hash as usize & table.mask;
         let mut index = hash_index;
 
@@ -41,6 +48,24 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LinearProbing {
             if index == hash_index {
                 return EntryResult::Full;
             }
+        }
+    }
+
+    fn remove(
+        &mut self,
+        table: &RawHashTable,
+        key: &K,
+        hash: u64,
+    ) -> Result<EntryBucket<K, V>, ()> {
+        if self.tombstone {
+            match self.lookup(table, key, hash) {
+                EntryResult::Some(mut ptr) => unsafe {
+                    Ok(mem::replace(ptr.as_mut(), EntryBucket::Tombstone))
+                },
+                _ => Err(()),
+            }
+        } else {
+            todo!("Backshift is not implemented now.")
         }
     }
 }

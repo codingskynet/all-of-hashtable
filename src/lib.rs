@@ -32,15 +32,14 @@ pub enum EntryResult<T> {
     Full, // the all of available access entries are full(Some or Tombstone)
 }
 
-pub trait Entry<K: PartialEq, B> {
-    fn default() -> Self;
-    fn entry(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<B>;
+pub trait Entry<K: PartialEq, B> : Default {
+    fn lookup(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<B>;
+    fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<B, ()>;
 }
 
 pub trait HashMap<K, V, S> {
     fn with_hasher(hasher: S) -> Self;
     fn insert(&mut self, key: K, value: V) -> Result<(), V>;
     fn lookup(&self, key: &K) -> Option<&V>;
-    fn update(&mut self, key: &K, value: V) -> Result<V, V>;
     fn remove(&mut self, key: &K) -> Result<V, ()>;
 }

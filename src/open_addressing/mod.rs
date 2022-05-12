@@ -90,7 +90,7 @@ impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V
                 EntryBucket::Some(entry) => {
                     println!("{:#018X}, ({:?}, {:?})", entry.hash, entry.key, entry.value)
                 }
-                EntryBucket::Tombstone => println!("TOMESTONE"),
+                EntryBucket::Tombstone => println!("TOMBSTONE"),
             }
         }
         println!("-----------------------------------------------------------------");
@@ -120,12 +120,12 @@ where
     }
 
     fn insert_bucket(&mut self, entry: Bucket<K, V>) -> Result<(), V> {
-        let bucket = self
+        let result = self
             .hashtable
             .entry
-            .entry(&self.hashtable.inner, &entry.key, entry.hash);
+            .lookup(&self.hashtable.inner, &entry.key, entry.hash);
 
-        match bucket {
+        match result {
             EntryResult::None(mut ptr) => {
                 unsafe { *ptr.as_mut() = EntryBucket::Some(entry) };
                 self.hashtable.count += 1;
@@ -165,7 +165,7 @@ where
 impl<K, V, E, S> HashMap<K, V, S> for OpenAddressingHashTable<K, V, E, S>
 where
     K: PartialEq + Hash + Clone,
-    E: Entry<K, EntryBucket<K, V>>,
+    E: Entry<K, EntryBucket<K, V>> ,
     S: BuildHasher,
 {
     fn with_hasher(hasher: S) -> Self {
@@ -193,27 +193,32 @@ where
     fn lookup(&self, key: &K) -> Option<&V> {
         let hash = self.hashtable.hasher.hash_one(key.clone());
 
-        let bucket = self
+        let result = self
             .hashtable
             .entry
-            .entry(&self.hashtable.inner, &key, hash);
-        match bucket {
-            EntryResult::None(_) => None,
+            .lookup(&self.hashtable.inner, &key, hash);
+        match result {
             EntryResult::Some(ptr) => unsafe {
                 match ptr.as_ref() {
                     EntryBucket::None | EntryBucket::Tombstone => unreachable!(),
                     EntryBucket::Some(entry) => Some(entry.value.as_ref()),
                 }
             },
-            EntryResult::Full => unreachable!(),
+            _ => None,
         }
     }
 
-    fn update(&mut self, key: &K, value: V) -> Result<V, V> {
-        todo!()
-    }
-
     fn remove(&mut self, key: &K) -> Result<V, ()> {
-        todo!()
+        let hash = self.hashtable.hasher.hash_one(key.clone());
+        
+        if let Ok(entry_bucket) = self.hashtable.entry.remove(&mut self.hashtable.inner, key, hash) {
+            if let EntryBucket::Some(bucket) = entry_bucket {
+                Ok(*bucket.value)
+            } else {
+                unreachable!()
+            }
+        } else {
+            Err(())
+        }
     }
 }

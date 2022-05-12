@@ -15,5 +15,13 @@ fn test_open_addressing_hashtable() {
         assert_eq!(table.lookup(&i), Some(&i));
     }
 
+    for i in 0..1000 {
+        assert_eq!(table.remove(&i), Ok(i));
+    }
+
+    for i in 0..1000 {
+        assert_eq!(table.lookup(&i), None);
+    }
+
     table.print();
 }
