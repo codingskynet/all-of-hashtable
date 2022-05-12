@@ -10,9 +10,11 @@ use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, INITIAL_SIZE, 
 
 mod linear_probing;
 mod quadratic_probing;
+mod double_hashing;
 
 pub use linear_probing::LinearProbing;
 pub use quadratic_probing::QuadraticProbing;
+pub use double_hashing::DoubleHashing;
 
 pub struct Bucket<K, V> {
     key: K,
@@ -214,7 +216,7 @@ where
 
     fn remove(&mut self, key: &K) -> Result<V, ()> {
         let hash = self.hashtable.hasher.hash_one(key.clone());
-        
+
         if let Ok(entry_bucket) = self.hashtable.entry.remove(&mut self.hashtable.inner, key, hash) {
             if let EntryBucket::Some(bucket) = entry_bucket {
                 Ok(*bucket.value)
