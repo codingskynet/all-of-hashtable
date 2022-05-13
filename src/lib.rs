@@ -1,9 +1,9 @@
 #![feature(build_hasher_simple_hash_one)]
 
 use std::{
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, Hash, BuildHasherDefault},
     marker::PhantomData,
-    ptr::NonNull,
+    ptr::NonNull, collections::hash_map::DefaultHasher,
 };
 
 pub mod chaining;
@@ -37,7 +37,8 @@ pub trait Entry<K: PartialEq, B> : Default {
     fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<B, ()>;
 }
 
-pub trait HashMap<K, V, S> {
+pub trait HashMap<K, V, S = BuildHasherDefault<DefaultHasher>> {
+    fn new() -> Self;
     fn with_hasher(hasher: S) -> Self;
     fn insert(&mut self, key: &K, value: V) -> Result<(), V>;
     fn lookup(&self, key: &K) -> Option<&V>;

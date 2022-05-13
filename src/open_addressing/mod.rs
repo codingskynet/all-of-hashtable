@@ -172,8 +172,12 @@ impl<K, V, E, S> HashMap<K, V, S> for OpenAddressingHashTable<K, V, E, S>
 where
     K: PartialEq + Hash + Clone,
     E: Entry<K, EntryBucket<K, V>>,
-    S: BuildHasher,
+    S: BuildHasher + Default,
 {
+    fn new() -> Self {
+        Self::new_with_properties(S::default(), E::default(), INITIAL_SIZE, LOAD_FACTOR)
+    }
+    
     fn with_hasher(hasher: S) -> Self {
         Self::new_with_properties(hasher, E::default(), INITIAL_SIZE, LOAD_FACTOR)
     }
