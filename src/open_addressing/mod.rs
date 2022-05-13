@@ -127,7 +127,7 @@ where
         let result =
             self.hashtable
                 .entry
-                .lookup(&self.hashtable.inner, &entry.key, entry.hash, false); // why it cannot be true?
+                .lookup(&self.hashtable.inner, &entry.key, entry.hash, true);
 
         match result {
             EntryResult::None(mut ptr) => {

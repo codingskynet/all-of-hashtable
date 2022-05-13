@@ -8,8 +8,8 @@ use crate::util::*;
 
 mod util;
 
-const MAP_ALREADY_INSERTED: u64 = 500_000;
-const MAP_TOTAL_OPS: usize = 100_000;
+const MAP_ALREADY_INSERTED: u64 = 1_000_000;
+const MAP_TOTAL_OPS: usize = 1_000_000;
 
 const OPS_RATE: [(usize, usize, usize); 7] = [
     (100, 0, 0),
@@ -24,7 +24,7 @@ const OPS_RATE: [(usize, usize, usize); 7] = [
 fn bench_vs_btreemap(c: &mut Criterion) {
     for (insert, lookup, remove) in OPS_RATE {
         let logs = fuzz_logs(
-            400,
+            300,
             MAP_ALREADY_INSERTED,
             MAP_TOTAL_OPS * insert / 100,
             MAP_TOTAL_OPS * lookup / 100,
@@ -35,7 +35,7 @@ fn bench_vs_btreemap(c: &mut Criterion) {
             "Inserted {:+e}, Ops (I: {}%, L: {}%, R: {}%, total: {:+e})",
             MAP_ALREADY_INSERTED, insert, lookup, remove, MAP_TOTAL_OPS
         ));
-        group.measurement_time(Duration::from_secs(5));
+        group.measurement_time(Duration::from_secs(20));
         group.sampling_mode(SamplingMode::Flat);
         group.sample_size(20);
         group.throughput(Throughput::Elements(MAP_TOTAL_OPS as u64));
