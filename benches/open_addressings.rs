@@ -24,7 +24,7 @@ const OPS_RATE: [(usize, usize, usize); 7] = [
 fn bench_vs_btreemap(c: &mut Criterion) {
     for (insert, lookup, remove) in OPS_RATE {
         let logs = fuzz_logs(
-            500,
+            400,
             MAP_ALREADY_INSERTED,
             MAP_TOTAL_OPS * insert / 100,
             MAP_TOTAL_OPS * lookup / 100,

@@ -15,7 +15,13 @@ impl Default for QuadraticProbing {
 }
 
 impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for QuadraticProbing {
-    fn lookup(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<EntryBucket<K, V>> {
+    fn lookup(
+        &self,
+        table: &RawHashTable,
+        key: &K,
+        hash: u64,
+        tombstone: bool,
+    ) -> EntryResult<EntryBucket<K, V>> {
         let hash_index = hash as usize & table.mask;
         let mut offset = 0;
 
@@ -27,7 +33,11 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for QuadraticProbing {
                 EntryBucket::None => {
                     return EntryResult::None(NonNull::new(bucket as *mut _).unwrap());
                 }
-                EntryBucket::Tombstone => {} // just skip this bucket
+                EntryBucket::Tombstone => {
+                    if tombstone {
+                        return EntryResult::None(NonNull::new(bucket as *mut _).unwrap());
+                    }
+                }
                 EntryBucket::Some(entry_bucket) => {
                     if entry_bucket.hash == hash && entry_bucket.key == *key {
                         return EntryResult::Some(NonNull::new(bucket as *mut _).unwrap());
@@ -53,7 +63,7 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for QuadraticProbing {
         hash: u64,
     ) -> Result<EntryBucket<K, V>, ()> {
         if self.tombstone {
-            match self.lookup(table, key, hash) {
+            match self.lookup(table, key, hash, false) {
                 EntryResult::Some(mut ptr) => unsafe {
                     Ok(mem::replace(ptr.as_mut(), EntryBucket::Tombstone))
                 },

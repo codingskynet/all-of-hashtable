@@ -33,6 +33,22 @@ fn test_crd() {
 }
 
 #[test]
+fn test_insert_after_remove() {
+    let mut table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
+        BuildHasherDefault::<DefaultHasher>::default(),
+        LinearProbing::default(),
+        INITIAL_SIZE,
+        LOAD_FACTOR,
+    );
+
+    assert_eq!(table.insert(&1, 1), Ok(()));
+    assert_eq!(table.remove(&1), Ok(1));
+    table.print();
+    assert_eq!(table.insert(&1, 1), Ok(()));
+    table.print();
+}
+
+#[test]
 fn test_stress() {
     let table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
         BuildHasherDefault::<DefaultHasher>::default(),

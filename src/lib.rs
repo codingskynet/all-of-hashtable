@@ -33,7 +33,7 @@ pub enum EntryResult<T> {
 }
 
 pub trait Entry<K: PartialEq, B> : Default {
-    fn lookup(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<B>;
+    fn lookup(&self, table: &RawHashTable, key: &K, hash: u64, tombstone: bool) -> EntryResult<B>;
     fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<B, ()>;
 }
 

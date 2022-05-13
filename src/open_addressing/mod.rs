@@ -68,13 +68,11 @@ where
     hashtable: HashTable<K, V, S, E, EntryBucket<K, V>>,
 }
 
-impl<K, V, E> OpenAddressingHashTable<K, V, E>
-where
-    K: PartialEq + Hash + Clone,
-    E: Entry<K, EntryBucket<K, V>>,
+impl<K: PartialEq + Hash + Clone, V, E: Entry<K, EntryBucket<K, V>>, S: BuildHasher> Drop
+    for OpenAddressingHashTable<K, V, E, S>
 {
-    pub fn new() -> Self {
-        Self::with_hasher(BuildHasherDefault::<DefaultHasher>::default())
+    fn drop(&mut self) {
+        EntryBucket::<K, V>::dealloc(self.hashtable.inner.buckets, self.hashtable.inner.mask + 1);
     }
 }
 
@@ -126,14 +124,18 @@ where
     }
 
     fn insert_bucket(&mut self, entry: Bucket<K, V>) -> Result<(), V> {
-        let result = self
-            .hashtable
-            .entry
-            .lookup(&self.hashtable.inner, &entry.key, entry.hash);
+        let result =
+            self.hashtable
+                .entry
+                .lookup(&self.hashtable.inner, &entry.key, entry.hash, false); // why it cannot be true?
 
         match result {
             EntryResult::None(mut ptr) => {
-                unsafe { *ptr.as_mut() = EntryBucket::Some(entry) };
+                if let EntryBucket::Some(_) = unsafe { ptr.as_ref() } {
+                    unreachable!()
+                }
+
+                unsafe { ptr::write(ptr.as_mut(), EntryBucket::Some(entry)) };
                 self.hashtable.count += 1;
                 Ok(())
             }
@@ -177,7 +179,7 @@ where
     fn new() -> Self {
         Self::new_with_properties(S::default(), E::default(), INITIAL_SIZE, LOAD_FACTOR)
     }
-    
+
     fn with_hasher(hasher: S) -> Self {
         Self::new_with_properties(hasher, E::default(), INITIAL_SIZE, LOAD_FACTOR)
     }
@@ -206,7 +208,7 @@ where
         let result = self
             .hashtable
             .entry
-            .lookup(&self.hashtable.inner, &key, hash);
+            .lookup(&self.hashtable.inner, &key, hash, false);
         match result {
             EntryResult::Some(ptr) => unsafe {
                 match ptr.as_ref() {

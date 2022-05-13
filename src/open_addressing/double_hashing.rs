@@ -1,8 +1,13 @@
-use std::{hash::BuildHasher, collections::hash_map::{RandomState, DefaultHasher}, ptr::NonNull, mem};
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::{
+    collections::hash_map::{DefaultHasher, RandomState},
+    hash::BuildHasher,
+    mem,
+    ptr::NonNull,
+};
 
-use crate::{Entry, RawHashTable, EntryResult};
+use crate::{Entry, EntryResult, RawHashTable};
 
 use super::EntryBucket;
 
@@ -13,7 +18,10 @@ pub struct DoubleHashing<T = DefaultHasher> {
 
 impl Default for DoubleHashing {
     fn default() -> Self {
-        Self { hasher: Box::new(RandomState::new()), tombstone: true }
+        Self {
+            hasher: Box::new(RandomState::new()),
+            tombstone: true,
+        }
     }
 }
 
@@ -26,7 +34,13 @@ impl DoubleHashing {
 }
 
 impl<K: PartialEq + Hash + Clone, V> Entry<K, EntryBucket<K, V>> for DoubleHashing {
-    fn lookup(&self, table: &RawHashTable, key: &K, hash: u64) -> EntryResult<EntryBucket<K, V>> {
+    fn lookup(
+        &self,
+        table: &RawHashTable,
+        key: &K,
+        hash: u64,
+        tombstone: bool,
+    ) -> EntryResult<EntryBucket<K, V>> {
         let hash_index = hash as usize & table.mask;
         let step = self.hash_one(key.clone()) as usize;
 
@@ -40,7 +54,11 @@ impl<K: PartialEq + Hash + Clone, V> Entry<K, EntryBucket<K, V>> for DoubleHashi
                 EntryBucket::None => {
                     return EntryResult::None(NonNull::new(bucket as *mut _).unwrap());
                 }
-                EntryBucket::Tombstone => {} // just skip this bucket
+                EntryBucket::Tombstone => {
+                    if tombstone {
+                        return EntryResult::None(NonNull::new(bucket as *mut _).unwrap());
+                    }
+                }
                 EntryBucket::Some(entry_bucket) => {
                     if entry_bucket.hash == hash && entry_bucket.key == *key {
                         return EntryResult::Some(NonNull::new(bucket as *mut _).unwrap());
@@ -66,8 +84,8 @@ impl<K: PartialEq + Hash + Clone, V> Entry<K, EntryBucket<K, V>> for DoubleHashi
         hash: u64,
     ) -> Result<EntryBucket<K, V>, ()> {
         if self.tombstone {
-            match self.lookup(table, key, hash) {
-                EntryResult::Some(mut ptr) => unsafe {
+            match self.lookup(table, key, hash, false) {
+                EntryResult::Some(mut ptr, ) => unsafe {
                     Ok(mem::replace(ptr.as_mut(), EntryBucket::Tombstone))
                 },
                 _ => Err(()),
