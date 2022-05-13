@@ -8,10 +8,12 @@ use std::{mem, ptr};
 
 use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, INITIAL_SIZE, LOAD_FACTOR};
 
+mod fcfs;
 mod double_hashing;
 mod linear_probing;
 mod quadratic_probing;
 
+pub use fcfs::FCFS;
 pub use double_hashing::DoubleHashing;
 pub use linear_probing::LinearProbing;
 pub use quadratic_probing::QuadraticProbing;

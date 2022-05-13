@@ -3,13 +3,11 @@ use std::hash::Hasher;
 use std::{
     collections::hash_map::{DefaultHasher, RandomState},
     hash::BuildHasher,
-    mem,
-    ptr::NonNull,
 };
 
 use crate::{Entry, EntryResult, RawHashTable};
 
-use super::EntryBucket;
+use super::{EntryBucket, FCFS};
 
 pub struct DoubleHashing<T = DefaultHasher> {
     hasher: Box<dyn BuildHasher<Hasher = T>>,
@@ -41,46 +39,15 @@ impl<K: PartialEq + Hash + Clone, V> Entry<K, EntryBucket<K, V>> for DoubleHashi
         hash: u64,
         tombstone: bool,
     ) -> EntryResult<EntryBucket<K, V>> {
-        let hash_index = hash as usize & table.mask;
-        let step = self.hash_one(key.clone()) as usize;
+        let mut step: usize = 0;
+        let second_hash = self.hash_one(key) as usize;
 
-        let mut offset: usize = 0;
+        let offset = || {
+            step = step.wrapping_add(second_hash);
+            step
+        };
 
-        let first_bucket = table.buckets.as_ptr() as *const u8 as *const EntryBucket<K, V>;
-        let mut bucket = unsafe { first_bucket.add(hash_index) };
-
-        let mut tombstone_ptr = None;
-
-        loop {
-            match unsafe { &*bucket } {
-                EntryBucket::None => {
-                    if tombstone && tombstone_ptr.is_some() {
-                        return EntryResult::None(tombstone_ptr.unwrap());
-                    } else {
-                        return EntryResult::None(NonNull::new(bucket as *mut _).unwrap());
-                    }
-                }
-                EntryBucket::Tombstone => {
-                    if tombstone && tombstone_ptr.is_none() {
-                        tombstone_ptr = Some(NonNull::new(bucket as *mut _).unwrap());
-                    }
-                }
-                EntryBucket::Some(entry_bucket) => {
-                    if entry_bucket.hash == hash && entry_bucket.key == *key {
-                        return EntryResult::Some(NonNull::new(bucket as *mut _).unwrap());
-                    }
-                }
-            }
-
-            offset = offset.wrapping_add(step);
-            let next_index = (hash_index + offset) & table.mask;
-
-            if next_index == hash_index {
-                return EntryResult::Full;
-            }
-
-            unsafe { bucket = first_bucket.add(next_index) }
-        }
+        FCFS::lookup(table, key, hash, offset, tombstone)
     }
 
     fn remove(
@@ -89,15 +56,14 @@ impl<K: PartialEq + Hash + Clone, V> Entry<K, EntryBucket<K, V>> for DoubleHashi
         key: &K,
         hash: u64,
     ) -> Result<EntryBucket<K, V>, ()> {
-        if self.tombstone {
-            match self.lookup(table, key, hash, false) {
-                EntryResult::Some(mut ptr, ) => unsafe {
-                    Ok(mem::replace(ptr.as_mut(), EntryBucket::Tombstone))
-                },
-                _ => Err(()),
-            }
-        } else {
-            todo!("Backshift is not implemented now.")
-        }
+        let mut step: usize = 0;
+        let second_hash = self.hash_one(key) as usize;
+
+        let offset = || {
+            step = step.wrapping_add(second_hash);
+            step
+        };
+
+        FCFS::remove(table, key, hash, offset, self.tombstone)
     }
 }

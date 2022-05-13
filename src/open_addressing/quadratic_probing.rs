@@ -1,8 +1,6 @@
-use std::{mem, ptr::NonNull};
-
 use crate::{Entry, EntryResult, RawHashTable};
 
-use super::EntryBucket;
+use super::{EntryBucket, FCFS};
 
 pub struct QuadraticProbing {
     tombstone: bool,
@@ -22,44 +20,14 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for QuadraticProbing {
         hash: u64,
         tombstone: bool,
     ) -> EntryResult<EntryBucket<K, V>> {
-        let hash_index = hash as usize & table.mask;
-        let mut offset = 0;
+        let mut step = 0;
 
-        let first_bucket = table.buckets.as_ptr() as *const u8 as *const EntryBucket<K, V>;
-        let mut bucket = unsafe { first_bucket.add(hash_index) };
+        let offset = || {
+            step += 1;
+            step * step
+        };
 
-        let mut tombstone_ptr = None;
-
-        loop {
-            match unsafe { &*bucket } {
-                EntryBucket::None => {
-                    if tombstone && tombstone_ptr.is_some() {
-                        return EntryResult::None(tombstone_ptr.unwrap());
-                    } else {
-                        return EntryResult::None(NonNull::new(bucket as *mut _).unwrap());
-                    }
-                }
-                EntryBucket::Tombstone => {
-                    if tombstone && tombstone_ptr.is_none() {
-                        tombstone_ptr = Some(NonNull::new(bucket as *mut _).unwrap());
-                    }
-                }
-                EntryBucket::Some(entry_bucket) => {
-                    if entry_bucket.hash == hash && entry_bucket.key == *key {
-                        return EntryResult::Some(NonNull::new(bucket as *mut _).unwrap());
-                    }
-                }
-            }
-
-            offset += 1;
-            let next_index = (hash_index + offset * offset) & table.mask;
-
-            if next_index == hash_index {
-                return EntryResult::Full;
-            }
-
-            unsafe { bucket = first_bucket.add(next_index) }
-        }
+        FCFS::lookup(table, key, hash, offset, tombstone)
     }
 
     fn remove(
@@ -68,15 +36,13 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for QuadraticProbing {
         key: &K,
         hash: u64,
     ) -> Result<EntryBucket<K, V>, ()> {
-        if self.tombstone {
-            match self.lookup(table, key, hash, false) {
-                EntryResult::Some(mut ptr) => unsafe {
-                    Ok(mem::replace(ptr.as_mut(), EntryBucket::Tombstone))
-                },
-                _ => Err(()),
-            }
-        } else {
-            todo!("Backshift is not implemented now.")
-        }
+        let mut step = 0;
+
+        let offset = || {
+            step += 1;
+            step * step
+        };
+
+        FCFS::remove(table, key, hash, offset, self.tombstone)
     }
 }
