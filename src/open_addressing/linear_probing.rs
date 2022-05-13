@@ -1,9 +1,7 @@
 use std::mem;
 use std::ptr::NonNull;
 
-use crate::Entry;
-use crate::EntryResult;
-use crate::RawHashTable;
+use crate::{Entry, EntryResult, RawHashTable};
 
 use super::EntryBucket;
 

@@ -1,4 +1,4 @@
-use std::{ptr::NonNull, mem};
+use std::{mem, ptr::NonNull};
 
 use crate::{Entry, EntryResult, RawHashTable};
 

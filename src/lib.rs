@@ -39,7 +39,7 @@ pub trait Entry<K: PartialEq, B> : Default {
 
 pub trait HashMap<K, V, S> {
     fn with_hasher(hasher: S) -> Self;
-    fn insert(&mut self, key: K, value: V) -> Result<(), V>;
+    fn insert(&mut self, key: &K, value: V) -> Result<(), V>;
     fn lookup(&self, key: &K) -> Option<&V>;
     fn remove(&mut self, key: &K) -> Result<V, ()>;
 }

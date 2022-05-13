@@ -8,13 +8,13 @@ use std::{mem, ptr};
 
 use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, INITIAL_SIZE, LOAD_FACTOR};
 
+mod double_hashing;
 mod linear_probing;
 mod quadratic_probing;
-mod double_hashing;
 
+pub use double_hashing::DoubleHashing;
 pub use linear_probing::LinearProbing;
 pub use quadratic_probing::QuadraticProbing;
-pub use double_hashing::DoubleHashing;
 
 pub struct Bucket<K, V> {
     key: K,
@@ -171,15 +171,15 @@ where
 impl<K, V, E, S> HashMap<K, V, S> for OpenAddressingHashTable<K, V, E, S>
 where
     K: PartialEq + Hash + Clone,
-    E: Entry<K, EntryBucket<K, V>> ,
+    E: Entry<K, EntryBucket<K, V>>,
     S: BuildHasher,
 {
     fn with_hasher(hasher: S) -> Self {
         Self::new_with_properties(hasher, E::default(), INITIAL_SIZE, LOAD_FACTOR)
     }
 
-    fn insert(&mut self, key: K, value: V) -> Result<(), V> {
-        let hash = self.hashtable.hasher.hash_one(key.clone());
+    fn insert(&mut self, key: &K, value: V) -> Result<(), V> {
+        let hash = self.hashtable.hasher.hash_one(key);
 
         let bucket = Bucket {
             key: key.clone(),
@@ -197,7 +197,7 @@ where
     }
 
     fn lookup(&self, key: &K) -> Option<&V> {
-        let hash = self.hashtable.hasher.hash_one(key.clone());
+        let hash = self.hashtable.hasher.hash_one(key);
 
         let result = self
             .hashtable
@@ -215,9 +215,13 @@ where
     }
 
     fn remove(&mut self, key: &K) -> Result<V, ()> {
-        let hash = self.hashtable.hasher.hash_one(key.clone());
+        let hash = self.hashtable.hasher.hash_one(key);
 
-        if let Ok(entry_bucket) = self.hashtable.entry.remove(&mut self.hashtable.inner, key, hash) {
+        if let Ok(entry_bucket) = self
+            .hashtable
+            .entry
+            .remove(&mut self.hashtable.inner, key, hash)
+        {
             if let EntryBucket::Some(bucket) = entry_bucket {
                 Ok(*bucket.value)
             } else {
