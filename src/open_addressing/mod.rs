@@ -1,7 +1,7 @@
 use std::alloc::{alloc, dealloc, Layout};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
-use std::hash::{BuildHasher, BuildHasherDefault};
+use std::hash::{BuildHasher, BuildHasherDefault, Hasher};
 use std::marker::PhantomData;
 use std::{hash::Hash, ptr::NonNull};
 use std::{mem, ptr};
@@ -125,6 +125,12 @@ where
         Self { hashtable }
     }
 
+    fn hash_one(&self, key: &K) -> u64 {
+        let mut hasher = self.hashtable.hasher.build_hasher();
+        key.hash(&mut hasher);
+        hasher.finish()
+    }
+
     fn insert_bucket(&mut self, entry: Bucket<K, V>) -> Result<(), V> {
         let result =
             self.hashtable
@@ -187,7 +193,7 @@ where
     }
 
     fn insert(&mut self, key: &K, value: V) -> Result<(), V> {
-        let hash = self.hashtable.hasher.hash_one(key);
+        let hash = self.hash_one(key);
 
         let bucket = Bucket {
             key: key.clone(),
@@ -205,7 +211,7 @@ where
     }
 
     fn lookup(&self, key: &K) -> Option<&V> {
-        let hash = self.hashtable.hasher.hash_one(key);
+        let hash = self.hash_one(key);
 
         let result = self
             .hashtable
@@ -223,7 +229,7 @@ where
     }
 
     fn remove(&mut self, key: &K) -> Result<V, ()> {
-        let hash = self.hashtable.hasher.hash_one(key);
+        let hash = self.hash_one(key);
 
         if let Ok(entry_bucket) = self
             .hashtable
