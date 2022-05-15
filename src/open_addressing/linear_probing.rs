@@ -1,6 +1,6 @@
 use std::ptr;
 
-use crate::{Entry, EntryResult, InsertResult, RawHashTable};
+use crate::{Entry, InsertResult, RawHashTable};
 
 use super::{Bucket, EntryBucket, FCFS, LCFS};
 
@@ -102,14 +102,14 @@ impl Default for LcfsLinearProbing {
     }
 }
 
-impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LcfsLinearProbing {
+impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for LcfsLinearProbing {
     fn insert(
         &mut self,
         table: &RawHashTable,
         key: &K,
         hash: u64,
-        bucket: EntryBucket<K, V>,
-    ) -> InsertResult<EntryBucket<K, V>> {
+        bucket: Bucket<K, V>,
+    ) -> InsertResult<Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {
@@ -125,8 +125,8 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LcfsLinearProbing {
         table: &'a RawHashTable,
         key: &K,
         hash: u64,
-        tombstone: bool,
-    ) -> Option<&'a EntryBucket<K, V>> {
+        _: bool,
+    ) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {
@@ -134,16 +134,16 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LcfsLinearProbing {
             step
         };
 
-        let bucket = LCFS::lookup(table, key, hash, offset)?;
-        Some(&*bucket)
+        let entry_bucket = LCFS::lookup(table, key, hash, offset)?;
+
+        if let EntryBucket::Some(bucket) = entry_bucket {
+            Some(&*bucket)
+        } else {
+            unreachable!()
+        }
     }
 
-    fn remove(
-        &mut self,
-        table: &RawHashTable,
-        key: &K,
-        hash: u64,
-    ) -> Result<EntryBucket<K, V>, ()> {
+    fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<Bucket<K, V>, ()> {
         let mut step = 0;
 
         let offset = || {
@@ -151,6 +151,12 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for LcfsLinearProbing {
             step
         };
 
-        LCFS::remove(table, key, hash, offset, self.tombstone)
+        let entry_bucket = LCFS::remove(table, key, hash, offset, self.tombstone)?;
+
+        if let EntryBucket::Some(bucket) = entry_bucket {
+            Ok(bucket)
+        } else {
+            unreachable!()
+        }
     }
 }

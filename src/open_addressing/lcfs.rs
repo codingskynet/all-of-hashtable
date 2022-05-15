@@ -5,7 +5,7 @@ use std::{
 
 use crate::{InsertResult, RawHashTable};
 
-use super::EntryBucket;
+use super::{EntryBucket, Bucket};
 
 pub struct LCFS;
 
@@ -73,9 +73,9 @@ impl LCFS {
         key: &K,
         hash: u64,
         offset: F,
-        bucket: EntryBucket<K, V>,
+        bucket: Bucket<K, V>,
         tombstone: bool,
-    ) -> InsertResult<EntryBucket<K, V>>
+    ) -> InsertResult<Bucket<K, V>>
     where
         K: PartialEq,
         F: FnMut() -> usize,
@@ -102,7 +102,7 @@ impl LCFS {
         }
 
         unsafe {
-            ptr::write(last_bucket.as_mut(), bucket);
+            ptr::write(last_bucket.as_mut(), EntryBucket::Some(bucket));
         }
 
         InsertResult::Success

@@ -1,6 +1,6 @@
-use std::{mem, ptr::NonNull};
+use std::mem;
 
-use crate::{EntryResult, RawHashTable};
+use crate::RawHashTable;
 
 use super::EntryBucket;
 
