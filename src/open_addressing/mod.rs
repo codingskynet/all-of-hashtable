@@ -213,7 +213,7 @@ where
         let result = self
             .hashtable
             .entry
-            .lookup(&self.hashtable.inner, &key, hash, false)?;
+            .lookup(&self.hashtable.inner, &key, hash)?;
 
         Some(result.value.as_ref())
     }

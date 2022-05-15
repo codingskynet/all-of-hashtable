@@ -66,7 +66,6 @@ impl<K: PartialEq + Hash, V> Entry<K, Bucket<K, V>> for FcfsDoubleHashing {
         table: &'a RawHashTable,
         key: &K,
         hash: u64,
-        tombstone: bool,
     ) -> Option<&'a Bucket<K, V>> {
         let mut step: usize = 0;
         let second_hash = self.hash_one(key) as usize;

@@ -39,7 +39,7 @@ pub enum InsertResult<T> {
 
 pub trait Entry<K: PartialEq, B> : Default {
     fn insert(&mut self, table: &RawHashTable, bucket: B) -> InsertResult<B>;
-    fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64, tombstone: bool) -> Option<&'a B>;
+    fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a B>;
     fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<B, ()>;
 }
 

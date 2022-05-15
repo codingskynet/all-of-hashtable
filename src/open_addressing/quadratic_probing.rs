@@ -45,7 +45,6 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
         table: &'a RawHashTable,
         key: &K,
         hash: u64,
-        tombstone: bool,
     ) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 

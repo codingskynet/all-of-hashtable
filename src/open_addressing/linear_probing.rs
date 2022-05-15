@@ -49,7 +49,6 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsLinearProbing {
         table: &'a RawHashTable,
         key: &K,
         hash: u64,
-        tombstone: bool,
     ) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 
@@ -121,7 +120,6 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for LcfsLinearProbing {
         table: &'a RawHashTable,
         key: &K,
         hash: u64,
-        _: bool,
     ) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 
