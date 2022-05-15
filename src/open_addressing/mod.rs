@@ -19,9 +19,7 @@ pub use lcfs::LCFS;
 pub use linear_probing::FcfsLinearProbing;
 pub use linear_probing::LcfsLinearProbing;
 pub use quadratic_probing::FcfsQuadraticProbing;
-pub use quadratic_probing::LcfsQuadraticProbing;
 pub use double_hashing::FcfsDoubleHashing;
-pub use double_hashing::LcfsDoubleHashing;
 
 pub struct Bucket<K, V> {
     key: K,
