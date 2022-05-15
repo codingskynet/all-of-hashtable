@@ -122,13 +122,9 @@ impl LCFS {
         let first_bucket = table.buckets.as_ptr() as *mut u8 as *mut EntryBucket<K, V>;
         let mut bucket = unsafe { &mut *first_bucket.add(hash_index) };
 
-        println!("{:#018X}", hash_index);
-
         loop {
-            println!("aaaa");
             match bucket {
                 EntryBucket::None => {
-                    println!("None!");
                     return None;
                 }
                 EntryBucket::Tombstone => {}
@@ -142,7 +138,6 @@ impl LCFS {
             let next_index = hash_index.wrapping_add(offset()) & table.mask;
 
             if next_index == hash_index {
-                println!("Full!");
                 return None;
             }
 
