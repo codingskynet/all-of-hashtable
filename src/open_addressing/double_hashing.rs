@@ -10,6 +10,7 @@ use crate::InsertResult;
 use crate::{Entry, RawHashTable};
 
 use super::Bucket;
+use super::LCFS;
 use super::{EntryBucket, FCFS};
 
 pub struct FcfsDoubleHashing<T = DefaultHasher> {
@@ -100,6 +101,88 @@ impl<K: PartialEq + Hash, V> Entry<K, Bucket<K, V>> for FcfsDoubleHashing {
         match entry_bucket {
             EntryBucket::Some(bucket) => Ok(bucket),
             _ => Err(()),
+        }
+    }
+}
+
+
+pub struct LcfsDoubleHashing<T = DefaultHasher> {
+    hasher: Box<dyn BuildHasher<Hasher = T>>,
+    tombstone: bool,
+}
+
+impl Default for LcfsDoubleHashing {
+    fn default() -> Self {
+        Self {
+            hasher: Box::new(RandomState::new()),
+            tombstone: true,
+        }
+    }
+}
+
+impl LcfsDoubleHashing {
+    fn hash_one<K: Hash>(&self, x: K) -> u64 {
+        let mut hasher = self.hasher.build_hasher();
+        x.hash(&mut hasher);
+        hasher.finish()
+    }
+}
+
+impl<K: PartialEq + Hash, V> Entry<K, Bucket<K, V>> for LcfsDoubleHashing {
+    fn insert(
+        &mut self,
+        table: &RawHashTable,
+        bucket: Bucket<K, V>,
+    ) -> InsertResult<Bucket<K, V>> {
+        let mut step: usize = 0;
+        let second_hash = self.hash_one(&bucket.key) as usize;
+
+        let offset = || {
+            step = step.wrapping_add(second_hash);
+            step
+        };
+
+        LCFS::insert(table, offset, bucket, self.tombstone)
+    }
+
+    fn lookup<'a>(
+        &self,
+        table: &'a RawHashTable,
+        key: &K,
+        hash: u64,
+    ) -> Option<&'a Bucket<K, V>> {
+        let mut step: usize = 0;
+        let second_hash = self.hash_one(key) as usize;
+
+        let offset = || {
+            step = step.wrapping_add(second_hash);
+            step
+        };
+
+        let entry_bucket = LCFS::lookup(table, key, hash, offset)?;
+
+        if let EntryBucket::Some(bucket) = entry_bucket {
+            Some(&*bucket)
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<Bucket<K, V>, ()> {
+        let mut step: usize = 0;
+        let second_hash = self.hash_one(key) as usize;
+
+        let offset = || {
+            step = step.wrapping_add(second_hash);
+            step
+        };
+
+        let entry_bucket = LCFS::remove(table, key, hash, offset, self.tombstone)?;
+
+        if let EntryBucket::Some(bucket) = entry_bucket {
+            Ok(bucket)
+        } else {
+            unreachable!()
         }
     }
 }
