@@ -137,7 +137,7 @@ where
         let result =
             self.hashtable
                 .entry
-                .insert(&self.hashtable.inner, &bucket.key, bucket.hash, bucket);
+                .insert(&self.hashtable.inner, bucket);
 
         match result {
             InsertResult::Success => {

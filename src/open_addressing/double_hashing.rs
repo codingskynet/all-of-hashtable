@@ -38,19 +38,17 @@ impl<K: PartialEq + Hash, V> Entry<K, Bucket<K, V>> for FcfsDoubleHashing {
     fn insert(
         &mut self,
         table: &RawHashTable,
-        key: &K,
-        hash: u64,
         bucket: Bucket<K, V>,
     ) -> InsertResult<Bucket<K, V>> {
         let mut step: usize = 0;
-        let second_hash = self.hash_one(key) as usize;
+        let second_hash = self.hash_one(&bucket.key) as usize;
 
         let offset = || {
             step = step.wrapping_add(second_hash);
             step
         };
 
-        if let Ok(entry_bucket) = FCFS::lookup(table, key, hash, offset, true) {
+        if let Ok(entry_bucket) = FCFS::lookup(table, &bucket.key, bucket.hash, offset, true) {
             match entry_bucket {
                 EntryBucket::Some(_) => InsertResult::AlreadyExist(bucket),
                 EntryBucket::None | EntryBucket::Tombstone => {

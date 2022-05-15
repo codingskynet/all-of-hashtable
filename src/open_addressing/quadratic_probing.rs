@@ -18,8 +18,6 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
     fn insert(
         &mut self,
         table: &RawHashTable,
-        key: &K,
-        hash: u64,
         bucket: Bucket<K, V>,
     ) -> InsertResult<Bucket<K, V>> {
         let mut step = 0;
@@ -29,7 +27,7 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
             step * step
         };
 
-        if let Ok(entry_bucket) = FCFS::lookup(table, key, hash, offset, true) {
+        if let Ok(entry_bucket) = FCFS::lookup(table, &bucket.key, bucket.hash, offset, true) {
             match entry_bucket {
                 EntryBucket::Some(_) => InsertResult::AlreadyExist(bucket),
                 EntryBucket::None | EntryBucket::Tombstone => {

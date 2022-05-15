@@ -70,8 +70,6 @@ impl LCFS {
 
     pub fn insert<K, V, F>(
         table: &RawHashTable,
-        key: &K,
-        hash: u64,
         offset: F,
         bucket: Bucket<K, V>,
         tombstone: bool,
@@ -81,7 +79,7 @@ impl LCFS {
         F: FnMut() -> usize,
     {
         let mut buckets =
-            if let Ok(buckets) = LCFS::lookup_stack(table, key, hash, offset, tombstone) {
+            if let Ok(buckets) = LCFS::lookup_stack(table, &bucket.key, bucket.hash, offset, tombstone) {
                 buckets
             } else {
                 return InsertResult::Full(bucket);
