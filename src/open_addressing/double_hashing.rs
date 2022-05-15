@@ -1,20 +1,21 @@
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::ptr;
 use std::{
     collections::hash_map::{DefaultHasher, RandomState},
     hash::BuildHasher,
 };
 
-use crate::{Entry, EntryResult, RawHashTable};
+use crate::{Entry, InsertResult, RawHashTable};
 
-use super::{EntryBucket, FCFS};
+use super::{Bucket, EntryBucket, FCFS};
 
-pub struct DoubleHashing<T = DefaultHasher> {
+pub struct FcfsDoubleHashing<T = DefaultHasher> {
     hasher: Box<dyn BuildHasher<Hasher = T>>,
     tombstone: bool,
 }
 
-impl Default for DoubleHashing {
+impl Default for FcfsDoubleHashing {
     fn default() -> Self {
         Self {
             hasher: Box::new(RandomState::new()),
@@ -23,7 +24,7 @@ impl Default for DoubleHashing {
     }
 }
 
-impl DoubleHashing {
+impl FcfsDoubleHashing {
     fn hash_one<K: Hash>(&self, x: K) -> u64 {
         let mut hasher = self.hasher.build_hasher();
         x.hash(&mut hasher);
@@ -31,31 +32,30 @@ impl DoubleHashing {
     }
 }
 
-impl<K: PartialEq + Hash + Clone, V> Entry<K, EntryBucket<K, V>> for DoubleHashing {
-    fn lookup(
-        &self,
-        table: &RawHashTable,
-        key: &K,
-        hash: u64,
-        tombstone: bool,
-    ) -> EntryResult<EntryBucket<K, V>> {
+impl<K: PartialEq + Hash, V> Entry<K, Bucket<K, V>> for FcfsDoubleHashing {
+    fn insert(&mut self, table: &RawHashTable, bucket: Bucket<K, V>) -> InsertResult<Bucket<K, V>> {
         let mut step: usize = 0;
-        let second_hash = self.hash_one(key) as usize;
+        let second_hash = self.hash_one(&bucket.key) as usize;
 
         let offset = || {
             step = step.wrapping_add(second_hash);
             step
         };
 
-        FCFS::lookup(table, key, hash, offset, tombstone)
+        if let Ok(entry_bucket) = FCFS::lookup(table, &bucket.key, bucket.hash, offset) {
+            match entry_bucket {
+                EntryBucket::Some(_) => InsertResult::AlreadyExist(bucket),
+                EntryBucket::None | EntryBucket::Tombstone => {
+                    unsafe { ptr::write(entry_bucket, EntryBucket::Some(bucket)) };
+                    InsertResult::Success
+                }
+            }
+        } else {
+            InsertResult::Full(bucket)
+        }
     }
 
-    fn remove(
-        &mut self,
-        table: &RawHashTable,
-        key: &K,
-        hash: u64,
-    ) -> Result<EntryBucket<K, V>, ()> {
+    fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a Bucket<K, V>> {
         let mut step: usize = 0;
         let second_hash = self.hash_one(key) as usize;
 
@@ -64,6 +64,31 @@ impl<K: PartialEq + Hash + Clone, V> Entry<K, EntryBucket<K, V>> for DoubleHashi
             step
         };
 
-        FCFS::remove(table, key, hash, offset, self.tombstone)
+        if let Ok(entry_bucket) = FCFS::lookup(table, key, hash, offset) {
+            match entry_bucket {
+                EntryBucket::None => None,
+                EntryBucket::Some(bucket) => Some(bucket),
+                EntryBucket::Tombstone => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<Bucket<K, V>, ()> {
+        let mut step: usize = 0;
+        let second_hash = self.hash_one(key) as usize;
+
+        let offset = || {
+            step = step.wrapping_add(second_hash);
+            step
+        };
+
+        let entry_bucket = FCFS::remove(table, key, hash, offset, self.tombstone)?;
+
+        match entry_bucket {
+            EntryBucket::Some(bucket) => Ok(bucket),
+            _ => Err(()),
+        }
     }
 }
