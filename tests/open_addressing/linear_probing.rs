@@ -1,5 +1,5 @@
 use all_of_hashtable::{
-    open_addressing::{LinearProbing, OpenAddressingHashTable},
+    open_addressing::{FcfsLinearProbing, OpenAddressingHashTable},
     HashMap, INITIAL_SIZE, LOAD_FACTOR,
 };
 use std::{collections::hash_map::DefaultHasher, hash::BuildHasherDefault};
@@ -10,7 +10,7 @@ use crate::util::stress_hashmap;
 fn test_crd() {
     let mut table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
         BuildHasherDefault::<DefaultHasher>::default(),
-        LinearProbing::default(),
+        FcfsLinearProbing::default(),
         INITIAL_SIZE,
         LOAD_FACTOR,
     );
@@ -36,7 +36,7 @@ fn test_crd() {
 fn test_insert_after_remove() {
     let mut table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
         BuildHasherDefault::<DefaultHasher>::default(),
-        LinearProbing::default(),
+        FcfsLinearProbing::default(),
         INITIAL_SIZE,
         LOAD_FACTOR,
     );
@@ -52,7 +52,7 @@ fn test_insert_after_remove() {
 fn test_stress() {
     let table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
         BuildHasherDefault::<DefaultHasher>::default(),
-        LinearProbing::default(),
+        FcfsLinearProbing::default(),
         INITIAL_SIZE,
         LOAD_FACTOR,
     );

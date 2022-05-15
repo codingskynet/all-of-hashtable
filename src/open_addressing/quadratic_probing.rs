@@ -1,41 +1,27 @@
-use crate::{Entry, EntryResult, RawHashTable};
+use std::ptr;
 
-use super::{EntryBucket, FCFS};
+use crate::{Entry, InsertResult, RawHashTable};
 
-pub struct QuadraticProbing {
+use super::{Bucket, EntryBucket, FCFS};
+
+pub struct FcfsQuadraticProbing {
     tombstone: bool,
 }
 
-impl Default for QuadraticProbing {
+impl Default for FcfsQuadraticProbing {
     fn default() -> Self {
         Self { tombstone: true }
     }
 }
 
-impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for QuadraticProbing {
-    fn lookup(
-        &self,
-        table: &RawHashTable,
-        key: &K,
-        hash: u64,
-        tombstone: bool,
-    ) -> EntryResult<EntryBucket<K, V>> {
-        let mut step = 0;
-
-        let offset = || {
-            step += 1;
-            step * step
-        };
-
-        FCFS::lookup(table, key, hash, offset, tombstone)
-    }
-
-    fn remove(
+impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
+    fn insert(
         &mut self,
         table: &RawHashTable,
         key: &K,
         hash: u64,
-    ) -> Result<EntryBucket<K, V>, ()> {
+        bucket: Bucket<K, V>,
+    ) -> InsertResult<Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {
@@ -43,6 +29,57 @@ impl<K: PartialEq, V> Entry<K, EntryBucket<K, V>> for QuadraticProbing {
             step * step
         };
 
-        FCFS::remove(table, key, hash, offset, self.tombstone)
+        if let Ok(entry_bucket) = FCFS::lookup(table, key, hash, offset, true) {
+            match entry_bucket {
+                EntryBucket::Some(_) => InsertResult::AlreadyExist(bucket),
+                EntryBucket::None | EntryBucket::Tombstone => {
+                    unsafe { ptr::write(entry_bucket, EntryBucket::Some(bucket)) };
+                    InsertResult::Success
+                }
+            }
+        } else {
+            InsertResult::Full(bucket)
+        }
+    }
+
+    fn lookup<'a>(
+        &self,
+        table: &'a RawHashTable,
+        key: &K,
+        hash: u64,
+        tombstone: bool,
+    ) -> Option<&'a Bucket<K, V>> {
+        let mut step = 0;
+
+        let offset = || {
+            step += 1;
+            step * step
+        };
+
+        if let Ok(entry_bucket) = FCFS::lookup(table, key, hash, offset, tombstone) {
+            match entry_bucket {
+                EntryBucket::None => None,
+                EntryBucket::Some(bucket) => Some(bucket),
+                EntryBucket::Tombstone => panic!(),
+            }
+        } else {
+            None
+        }
+    }
+
+    fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<Bucket<K, V>, ()> {
+        let mut step = 0;
+
+        let offset = || {
+            step += 1;
+            step * step
+        };
+
+        let entry_bucket = FCFS::remove(table, key, hash, offset, self.tombstone)?;
+
+        match entry_bucket {
+            EntryBucket::Some(bucket) => Ok(bucket),
+            _ => Err(()),
+        }
     }
 }

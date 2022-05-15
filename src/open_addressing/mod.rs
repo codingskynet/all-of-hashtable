@@ -6,17 +6,19 @@ use std::marker::PhantomData;
 use std::{hash::Hash, ptr::NonNull};
 use std::{mem, ptr};
 
-use crate::{Entry, EntryResult, HashMap, HashTable, RawHashTable, INITIAL_SIZE, LOAD_FACTOR};
+use crate::{Entry, HashMap, HashTable, InsertResult, RawHashTable, INITIAL_SIZE, LOAD_FACTOR};
 
-mod fcfs;
 mod double_hashing;
+mod fcfs;
+mod lcfs;
 mod linear_probing;
 mod quadratic_probing;
 
+pub use double_hashing::FcfsDoubleHashing;
 pub use fcfs::FCFS;
-pub use double_hashing::DoubleHashing;
-pub use linear_probing::LinearProbing;
-pub use quadratic_probing::QuadraticProbing;
+pub use lcfs::LCFS;
+pub use linear_probing::FcfsLinearProbing;
+pub use quadratic_probing::FcfsQuadraticProbing;
 
 pub struct Bucket<K, V> {
     key: K,
@@ -64,13 +66,13 @@ impl<K, V> EntryBucket<K, V> {
 pub struct OpenAddressingHashTable<K, V, E, S = BuildHasherDefault<DefaultHasher>>
 where
     K: PartialEq + Hash + Clone,
-    E: Entry<K, EntryBucket<K, V>>,
+    E: Entry<K, Bucket<K, V>>,
     S: BuildHasher,
 {
-    hashtable: HashTable<K, V, S, E, EntryBucket<K, V>>,
+    hashtable: HashTable<K, V, S, E, Bucket<K, V>>,
 }
 
-impl<K: PartialEq + Hash + Clone, V, E: Entry<K, EntryBucket<K, V>>, S: BuildHasher> Drop
+impl<K: PartialEq + Hash + Clone, V, E: Entry<K, Bucket<K, V>>, S: BuildHasher> Drop
     for OpenAddressingHashTable<K, V, E, S>
 {
     fn drop(&mut self) {
@@ -78,7 +80,7 @@ impl<K: PartialEq + Hash + Clone, V, E: Entry<K, EntryBucket<K, V>>, S: BuildHas
     }
 }
 
-impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V>>>
+impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, Bucket<K, V>>>
     OpenAddressingHashTable<K, V, E>
 {
     pub fn print(&self) {
@@ -106,7 +108,7 @@ impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, EntryBucket<K, V
 impl<K, V, E, S> OpenAddressingHashTable<K, V, E, S>
 where
     K: PartialEq + Hash + Clone,
-    E: Entry<K, EntryBucket<K, V>>,
+    E: Entry<K, Bucket<K, V>>,
     S: BuildHasher,
 {
     pub fn new_with_properties(hasher: S, entry: E, initial_size: usize, load_factor: f32) -> Self {
@@ -131,26 +133,21 @@ where
         hasher.finish()
     }
 
-    fn insert_bucket(&mut self, entry: Bucket<K, V>) -> Result<(), V> {
+    fn insert_bucket(&mut self, bucket: Bucket<K, V>) -> Result<(), V> {
         let result =
             self.hashtable
                 .entry
-                .lookup(&self.hashtable.inner, &entry.key, entry.hash, true);
+                .insert(&self.hashtable.inner, &bucket.key, bucket.hash, bucket);
 
         match result {
-            EntryResult::None(mut ptr) => {
-                if let EntryBucket::Some(_) = unsafe { ptr.as_ref() } {
-                    unreachable!()
-                }
-
-                unsafe { ptr::write(ptr.as_mut(), EntryBucket::Some(entry)) };
+            InsertResult::Success => {
                 self.hashtable.count += 1;
                 Ok(())
             }
-            EntryResult::Some(_) => Err(*entry.value),
-            EntryResult::Full => {
+            InsertResult::AlreadyExist(bucket) => Err(*bucket.value),
+            InsertResult::Full(bucket) => {
                 self.resize((self.hashtable.inner.mask + 1) << 1);
-                self.insert_bucket(entry)
+                self.insert_bucket(bucket)
             }
         }
     }
@@ -181,7 +178,7 @@ where
 impl<K, V, E, S> HashMap<K, V, S> for OpenAddressingHashTable<K, V, E, S>
 where
     K: PartialEq + Hash + Clone,
-    E: Entry<K, EntryBucket<K, V>>,
+    E: Entry<K, Bucket<K, V>>,
     S: BuildHasher + Default,
 {
     fn new() -> Self {
@@ -216,33 +213,19 @@ where
         let result = self
             .hashtable
             .entry
-            .lookup(&self.hashtable.inner, &key, hash, false);
-        match result {
-            EntryResult::Some(ptr) => unsafe {
-                match ptr.as_ref() {
-                    EntryBucket::None | EntryBucket::Tombstone => unreachable!(),
-                    EntryBucket::Some(entry) => Some(entry.value.as_ref()),
-                }
-            },
-            _ => None,
-        }
+            .lookup(&self.hashtable.inner, &key, hash, false)?;
+
+        Some(result.value.as_ref())
     }
 
     fn remove(&mut self, key: &K) -> Result<V, ()> {
         let hash = self.hash_one(key);
 
-        if let Ok(entry_bucket) = self
+        let bucket = self
             .hashtable
             .entry
-            .remove(&mut self.hashtable.inner, key, hash)
-        {
-            if let EntryBucket::Some(bucket) = entry_bucket {
-                Ok(*bucket.value)
-            } else {
-                unreachable!()
-            }
-        } else {
-            Err(())
-        }
+            .remove(&mut self.hashtable.inner, key, hash)?;
+
+        Ok(*bucket.value)
     }
 }

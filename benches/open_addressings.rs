@@ -1,5 +1,5 @@
 use all_of_hashtable::open_addressing::{
-    DoubleHashing, LinearProbing, OpenAddressingHashTable, QuadraticProbing,
+    DoubleHashing, FcfsLinearProbing, OpenAddressingHashTable, QuadraticProbing,
 };
 use criterion::{criterion_group, criterion_main, Criterion, SamplingMode, Throughput};
 use std::time::Duration;
@@ -41,7 +41,7 @@ fn bench_vs_btreemap(c: &mut Criterion) {
         group.throughput(Throughput::Elements(MAP_TOTAL_OPS as u64));
 
         bench_logs_hashmap(logs.clone(), &mut group);
-        bench_logs_sequential_map::<OpenAddressingHashTable<_, _, LinearProbing>>(
+        bench_logs_sequential_map::<OpenAddressingHashTable<_, _, FcfsLinearProbing>>(
             "LinearProbing",
             logs.clone(),
             &mut group,
