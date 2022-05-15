@@ -12,7 +12,6 @@ impl FCFS {
         key: &K,
         hash: u64,
         mut offset: F,
-        tombstone: bool,
     ) -> Result<&'a mut EntryBucket<K, V>, ()>
     where
         K: PartialEq,
@@ -35,8 +34,6 @@ impl FCFS {
                     };
                 }
                 EntryBucket::Tombstone => {
-                    debug_assert!(tombstone);
-
                     if tombstone_ptr.is_none() {
                         tombstone_ptr = Some(bucket);
                     }
@@ -70,11 +67,11 @@ impl FCFS {
         F: FnMut() -> usize,
     {
         if tombstone {
-            if let Ok(entry_bucket) = Self::lookup(table, key, hash, offset, false) {
+            if let Ok(entry_bucket) = Self::lookup(table, key, hash, offset) {
                 match entry_bucket {
                     EntryBucket::None => Err(()),
                     EntryBucket::Some(_) => Ok(mem::replace(entry_bucket, EntryBucket::Tombstone)),
-                    EntryBucket::Tombstone => panic!(),
+                    EntryBucket::Tombstone => Err(()),
                 }
             } else {
                 Err(())

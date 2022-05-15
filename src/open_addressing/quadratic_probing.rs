@@ -27,7 +27,7 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
             step * step
         };
 
-        if let Ok(entry_bucket) = FCFS::lookup(table, &bucket.key, bucket.hash, offset, true) {
+        if let Ok(entry_bucket) = FCFS::lookup(table, &bucket.key, bucket.hash, offset) {
             match entry_bucket {
                 EntryBucket::Some(_) => InsertResult::AlreadyExist(bucket),
                 EntryBucket::None | EntryBucket::Tombstone => {
@@ -54,11 +54,11 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
             step * step
         };
 
-        if let Ok(entry_bucket) = FCFS::lookup(table, key, hash, offset, tombstone) {
+        if let Ok(entry_bucket) = FCFS::lookup(table, key, hash, offset) {
             match entry_bucket {
                 EntryBucket::None => None,
                 EntryBucket::Some(bucket) => Some(bucket),
-                EntryBucket::Tombstone => panic!(),
+                EntryBucket::Tombstone => None,
             }
         } else {
             None
