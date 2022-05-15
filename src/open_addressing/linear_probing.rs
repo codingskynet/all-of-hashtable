@@ -19,11 +19,7 @@ impl Default for FcfsLinearProbing {
 }
 
 impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsLinearProbing {
-    fn insert(
-        &mut self,
-        table: &RawHashTable,
-        bucket: Bucket<K, V>,
-    ) -> InsertResult<Bucket<K, V>> {
+    fn insert(&mut self, table: &RawHashTable, bucket: Bucket<K, V>) -> InsertResult<Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {
@@ -44,12 +40,7 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsLinearProbing {
         }
     }
 
-    fn lookup<'a>(
-        &self,
-        table: &'a RawHashTable,
-        key: &K,
-        hash: u64,
-    ) -> Option<&'a Bucket<K, V>> {
+    fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {
@@ -100,11 +91,7 @@ impl Default for LcfsLinearProbing {
 }
 
 impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for LcfsLinearProbing {
-    fn insert(
-        &mut self,
-        table: &RawHashTable,
-        bucket: Bucket<K, V>,
-    ) -> InsertResult<Bucket<K, V>> {
+    fn insert(&mut self, table: &RawHashTable, bucket: Bucket<K, V>) -> InsertResult<Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {
@@ -115,12 +102,7 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for LcfsLinearProbing {
         LCFS::insert(table, offset, bucket, self.tombstone)
     }
 
-    fn lookup<'a>(
-        &self,
-        table: &'a RawHashTable,
-        key: &K,
-        hash: u64,
-    ) -> Option<&'a Bucket<K, V>> {
+    fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {

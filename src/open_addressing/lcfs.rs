@@ -5,7 +5,7 @@ use std::{
 
 use crate::{InsertResult, RawHashTable};
 
-use super::{EntryBucket, Bucket};
+use super::{Bucket, EntryBucket};
 
 pub struct LCFS;
 
@@ -78,12 +78,13 @@ impl LCFS {
         K: PartialEq,
         F: FnMut() -> usize,
     {
-        let mut buckets =
-            if let Ok(buckets) = LCFS::lookup_stack(table, &bucket.key, bucket.hash, offset, tombstone) {
-                buckets
-            } else {
-                return InsertResult::Full(bucket);
-            };
+        let mut buckets = if let Ok(buckets) =
+            LCFS::lookup_stack(table, &bucket.key, bucket.hash, offset, tombstone)
+        {
+            buckets
+        } else {
+            return InsertResult::Full(bucket);
+        };
 
         let mut last_bucket = buckets.pop().unwrap();
 

@@ -16,10 +16,11 @@ mod quadratic_probing;
 
 pub use fcfs::FCFS;
 pub use lcfs::LCFS;
+
+pub use double_hashing::FcfsDoubleHashing;
 pub use linear_probing::FcfsLinearProbing;
 pub use linear_probing::LcfsLinearProbing;
 pub use quadratic_probing::FcfsQuadraticProbing;
-pub use double_hashing::FcfsDoubleHashing;
 
 pub struct Bucket<K, V> {
     key: K,
@@ -135,10 +136,7 @@ where
     }
 
     fn insert_bucket(&mut self, bucket: Bucket<K, V>) -> Result<(), V> {
-        let result =
-            self.hashtable
-                .entry
-                .insert(&self.hashtable.inner, bucket);
+        let result = self.hashtable.entry.insert(&self.hashtable.inner, bucket);
 
         match result {
             InsertResult::Success => {

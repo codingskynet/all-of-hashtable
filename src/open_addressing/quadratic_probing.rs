@@ -2,7 +2,7 @@ use std::ptr;
 
 use crate::{Entry, InsertResult, RawHashTable};
 
-use super::{Bucket, EntryBucket, FCFS, LCFS};
+use super::{Bucket, EntryBucket, FCFS};
 
 pub struct FcfsQuadraticProbing {
     tombstone: bool,
@@ -15,11 +15,7 @@ impl Default for FcfsQuadraticProbing {
 }
 
 impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
-    fn insert(
-        &mut self,
-        table: &RawHashTable,
-        bucket: Bucket<K, V>,
-    ) -> InsertResult<Bucket<K, V>> {
+    fn insert(&mut self, table: &RawHashTable, bucket: Bucket<K, V>) -> InsertResult<Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {
@@ -40,12 +36,7 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
         }
     }
 
-    fn lookup<'a>(
-        &self,
-        table: &'a RawHashTable,
-        key: &K,
-        hash: u64,
-    ) -> Option<&'a Bucket<K, V>> {
+    fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 
         let offset = || {
