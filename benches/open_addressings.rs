@@ -36,7 +36,7 @@ fn bench_vs_btreemap(c: &mut Criterion) {
             "Inserted {:+e}, Ops (I: {}%, L: {}%, R: {}%, total: {:+e})",
             MAP_ALREADY_INSERTED, insert, lookup, remove, MAP_TOTAL_OPS
         ));
-        group.measurement_time(Duration::from_secs(20));
+        group.measurement_time(Duration::from_secs(15));
         group.sampling_mode(SamplingMode::Flat);
         group.sample_size(20);
         group.throughput(Throughput::Elements(MAP_TOTAL_OPS as u64));
