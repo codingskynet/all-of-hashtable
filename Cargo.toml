@@ -12,6 +12,7 @@ stat = []
 [dev-dependencies]
 rand = "0.8.5"
 criterion = "0.3.5"
+plotly = { git = "https://github.com/igiagkiozis/plotly", features = ["kaleido"] }
 
 [[bench]]
 name = "open_addressings"

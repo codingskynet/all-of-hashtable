@@ -1,10 +1,10 @@
 use all_of_hashtable::{
-    open_addressing::{FcfsQuadraticProbing, OpenAddressingHashTable},
+    open_addressing::{Bucket, FcfsQuadraticProbing, OpenAddressingHashTable},
     HashMap, INITIAL_SIZE, LOAD_FACTOR,
 };
 use std::{collections::hash_map::DefaultHasher, hash::BuildHasherDefault};
 
-use crate::util::stress_hashmap;
+use crate::util::{draw_stat, stress_hashmap};
 
 #[test]
 fn test_crd_fcfs() {
@@ -34,12 +34,20 @@ fn test_crd_fcfs() {
 
 #[test]
 fn test_stress_fcfs() {
-    let table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
+    let mut table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
         BuildHasherDefault::<DefaultHasher>::default(),
         FcfsQuadraticProbing::default(),
         INITIAL_SIZE,
         LOAD_FACTOR,
     );
 
-    stress_hashmap(table, 100_000);
+    stress_hashmap(&mut table, 100_000);
+
+    #[cfg(feature = "stat")]
+    draw_stat(
+        <FcfsQuadraticProbing as all_of_hashtable::Entry<u64, Bucket<u64, u64>>>::stat(
+            table.entry(),
+        ),
+        "output/FcfsQuadraticProbing.png",
+    );
 }

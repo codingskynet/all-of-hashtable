@@ -1,7 +1,15 @@
-use std::{collections::hash_map::DefaultHasher, hash::BuildHasherDefault};
+use std::{collections::hash_map::DefaultHasher, fs, hash::BuildHasherDefault};
 
-use all_of_hashtable::HashMap;
-use rand::{thread_rng, prelude::{ThreadRng, SliceRandom}, Rng};
+use all_of_hashtable::{HashMap, Stat};
+use plotly::{
+    common::Title,
+    layout::{Axis, AxisType},
+    Histogram, ImageFormat, Layout, Plot,
+};
+use rand::{
+    prelude::{SliceRandom, ThreadRng},
+    thread_rng, Rng,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Operation {
@@ -16,7 +24,7 @@ enum OperationType {
     None, // the operation for not existing key on the map
 }
 
-pub fn stress_hashmap<T>(mut map: T, iter: u64)
+pub fn stress_hashmap<T>(map: &mut T, iter: u64)
 where
     T: HashMap<u64, u64, BuildHasherDefault<DefaultHasher>>,
 {
@@ -44,7 +52,7 @@ where
         let t = types.choose(&mut rng).unwrap();
         let ref_map_keys = ref_map.keys().collect::<Vec<&u64>>();
         let existing_key = ref_map_keys.choose(&mut rng);
-        
+
         if existing_key.is_none() || *t == OperationType::None {
             // run operation with not existing key
             let not_existing_key = if let Ok(key) = gen_not_existing_key(&mut rng, &ref_map) {
@@ -122,4 +130,35 @@ where
             }
         }
     }
+}
+
+pub fn draw_stat(stat: Stat, file_name: &str) {
+    let mut title: String;
+
+    if file_name.contains("/") {
+        let last_slash = file_name.rfind("/").unwrap();
+
+        fs::create_dir_all(&file_name[0..last_slash]).unwrap();
+
+        title = file_name[(last_slash + 1)..].to_string();
+    } else {
+        title = file_name.to_string();
+    }
+
+    if title.contains(".") {
+        title = title[0..title.find(".").unwrap()].to_string();
+    }
+
+    let mut plot = Plot::new();
+    plot.set_layout(
+        Layout::new()
+            .x_axis(Axis::new().dtick(1.))
+            .y_axis(Axis::new().type_(AxisType::Log))
+            .title(Title::new(&title)),
+    );
+    plot.add_trace(Histogram::new(stat.insert_psl).name("Insert PSL"));
+    plot.add_trace(Histogram::new(stat.lookup_psl).name("Lookup PSL"));
+    plot.add_trace(Histogram::new(stat.remove_psl).name("Remove PSL"));
+
+    plot.write_image(file_name, ImageFormat::PNG, 1280, 720, 1.0);
 }

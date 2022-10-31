@@ -40,9 +40,9 @@ pub enum InsertResult<T> {
 
 #[derive(Default, Clone)]
 pub struct Stat {
-    insert_psl: Vec<u8>,
-    lookup_psl: Vec<u8>,
-    remove_psl: Vec<u8>,
+    pub insert_psl: Vec<u8>,
+    pub lookup_psl: Vec<u8>,
+    pub remove_psl: Vec<u8>,
 }
 
 pub trait Entry<K: PartialEq, B>: Default {
