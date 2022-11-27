@@ -45,6 +45,34 @@ pub struct Stat {
     pub remove_psl: Vec<u8>,
 }
 
+impl Stat {
+    pub fn print(&self) {
+        println!("- insert");
+        println!(
+            "total: {}, avg: {}",
+            self.insert_psl.len(),
+            self.insert_psl.iter().map(|x| *x as usize).sum::<usize>() as f64
+                / self.insert_psl.len() as f64
+        );
+
+        println!("- lookup");
+        println!(
+            "total: {}, avg: {}",
+            self.lookup_psl.len(),
+            self.lookup_psl.iter().map(|x| *x as usize).sum::<usize>() as f64
+                / self.lookup_psl.len() as f64
+        );
+
+        println!("- remove");
+        println!(
+            "total: {}, avg: {}",
+            self.remove_psl.len(),
+            self.remove_psl.iter().map(|x| *x as usize).sum::<usize>() as f64
+                / self.remove_psl.len() as f64
+        );
+    }
+}
+
 pub trait Entry<K: PartialEq, B>: Default {
     fn insert(&mut self, table: &RawHashTable, bucket: B) -> InsertResult<B>;
     fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a B>;

@@ -106,14 +106,18 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsLinearProbing {
             step
         };
 
-        let entry_bucket = FCFS::remove(table, key, hash, offset, self.tombstone)?;
+        let entry_bucket = FCFS::remove(table, key, hash, offset, self.tombstone);
 
         #[cfg(feature = "stat")]
         self.stat.borrow_mut().remove_psl.push(psl);
 
-        match entry_bucket {
-            EntryBucket::Some(bucket) => Ok(bucket),
-            _ => Err(()),
+        if let Ok(entry_bucket) = entry_bucket {
+            match entry_bucket {
+                EntryBucket::Some(bucket) => Ok(bucket),
+                _ => Err(()),
+            }
+        } else {
+            Err(())
         }
     }
 
@@ -181,15 +185,19 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for LcfsLinearProbing {
             step
         };
 
-        let entry_bucket = LCFS::lookup(table, key, hash, offset)?;
+        let entry_bucket = LCFS::lookup(table, key, hash, offset);
 
         #[cfg(feature = "stat")]
         self.stat.borrow_mut().lookup_psl.push(psl);
 
-        if let EntryBucket::Some(bucket) = entry_bucket {
-            Some(&*bucket)
+        if let Some(entry_bucket) = entry_bucket {
+            if let EntryBucket::Some(bucket) = entry_bucket {
+                Some(&*bucket)
+            } else {
+                unreachable!()
+            }
         } else {
-            unreachable!()
+            None
         }
     }
 
@@ -210,15 +218,19 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for LcfsLinearProbing {
             step
         };
 
-        let entry_bucket = LCFS::remove(table, key, hash, offset, self.tombstone)?;
+        let entry_bucket = LCFS::remove(table, key, hash, offset, self.tombstone);
 
         #[cfg(feature = "stat")]
         self.stat.borrow_mut().remove_psl.push(psl);
 
-        if let EntryBucket::Some(bucket) = entry_bucket {
-            Ok(bucket)
+        if let Ok(entry_bucket) = entry_bucket {
+            if let EntryBucket::Some(bucket) = entry_bucket {
+                Ok(bucket)
+            } else {
+                unreachable!()
+            }
         } else {
-            unreachable!()
+            Err(())
         }
     }
 

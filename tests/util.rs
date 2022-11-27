@@ -24,7 +24,7 @@ enum OperationType {
     None, // the operation for not existing key on the map
 }
 
-pub fn stress_hashmap<T>(map: &mut T, iter: u64)
+pub fn stress_hashmap<T>(map: &mut T, iter: u64, print: bool)
 where
     T: HashMap<u64, u64, BuildHasherDefault<DefaultHasher>>,
 {
@@ -66,22 +66,28 @@ where
                     // should success
                     let value: u64 = rng.gen();
 
-                    println!(
-                        "[{:0>10}] InsertNone: ({:?}, {})",
-                        i, not_existing_key, value
-                    );
+                    if print {
+                        println!(
+                            "[{:0>10}] InsertNone: ({:?}, {})",
+                            i, not_existing_key, value
+                        );
+                    }
                     assert_eq!(ref_map.insert(not_existing_key.clone(), value), None);
                     assert_eq!(map.insert(&not_existing_key, value), Ok(()));
                 }
                 Operation::Lookup => {
                     // should fail
-                    println!("[{:0>10}] LookupNone: ({:?}, None)", i, not_existing_key);
+                    if print {
+                        println!("[{:0>10}] LookupNone: ({:?}, None)", i, not_existing_key);
+                    }
                     assert_eq!(ref_map.get(&not_existing_key), None);
                     assert_eq!(map.lookup(&not_existing_key), None);
                 }
                 Operation::Remove => {
                     // should fail
-                    println!("[{:0>10}] RemoveNone: ({:?}, Err)", i, not_existing_key);
+                    if print {
+                        println!("[{:0>10}] RemoveNone: ({:?}, Err)", i, not_existing_key);
+                    }
                     assert_eq!(ref_map.remove(&not_existing_key), None);
                     assert_eq!(map.remove(&not_existing_key), Err(()));
                 }
@@ -95,31 +101,37 @@ where
                     // should fail
                     let value: u64 = rng.gen();
 
-                    println!("[{:0>10}] InsertSome: ({:?}, {})", i, existing_key, value);
+                    if print {
+                        println!("[{:0>10}] InsertSome: ({:?}, {})", i, existing_key, value);
+                    }
                     assert_eq!(map.insert(&existing_key, value), Err(value));
                 }
                 Operation::Lookup => {
                     // should success
                     let value = ref_map.get(&existing_key);
 
-                    println!(
-                        "[{:0>10}] LookupSome: ({:?}, {})",
-                        i,
-                        existing_key,
-                        value.unwrap()
-                    );
+                    if print {
+                        println!(
+                            "[{:0>10}] LookupSome: ({:?}, {})",
+                            i,
+                            existing_key,
+                            value.unwrap()
+                        );
+                    }
                     assert_eq!(map.lookup(&existing_key), value);
                 }
                 Operation::Remove => {
                     // should success
                     let value = ref_map.remove(&existing_key);
 
-                    println!(
-                        "[{:0>10}] RemoveSome: ({:?}, {})",
-                        i,
-                        existing_key,
-                        value.unwrap()
-                    );
+                    if print {
+                        println!(
+                            "[{:0>10}] RemoveSome: ({:?}, {})",
+                            i,
+                            existing_key,
+                            value.unwrap()
+                        );
+                    }
                     assert_eq!(map.remove(&existing_key).ok(), value);
 
                     // early stop code if the remove has any problems

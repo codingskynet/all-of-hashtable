@@ -41,13 +41,15 @@ fn test_stress_fcfs() {
         LOAD_FACTOR,
     );
 
-    stress_hashmap(&mut table, 100_000);
+    stress_hashmap(&mut table, 100_000, false);
 
     #[cfg(feature = "stat")]
-    draw_stat(
-        <FcfsQuadraticProbing as all_of_hashtable::Entry<u64, Bucket<u64, u64>>>::stat(
+    {
+        let stat = <FcfsQuadraticProbing as all_of_hashtable::Entry<u64, Bucket<u64, u64>>>::stat(
             table.entry(),
-        ),
-        "output/FcfsQuadraticProbing.png",
-    );
+        );
+        println!();
+        stat.print();
+        draw_stat(stat, "output/FcfsQuadraticProbing.png");
+    }
 }

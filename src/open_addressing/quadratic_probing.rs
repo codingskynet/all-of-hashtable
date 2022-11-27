@@ -106,14 +106,18 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsQuadraticProbing {
 
         debug_assert!(self.tombstone); // quadratic probing does not support backshift
 
-        let entry_bucket = FCFS::remove(table, key, hash, offset, self.tombstone)?;
+        let entry_bucket = FCFS::remove(table, key, hash, offset, self.tombstone);
 
         #[cfg(feature = "stat")]
         self.stat.borrow_mut().remove_psl.push(psl);
 
-        match entry_bucket {
-            EntryBucket::Some(bucket) => Ok(bucket),
-            _ => Err(()),
+        if let Ok(entry_bucket) = entry_bucket {
+            match entry_bucket {
+                EntryBucket::Some(bucket) => Ok(bucket),
+                _ => Err(()),
+            }
+        } else {
+            Err(())
         }
     }
 
