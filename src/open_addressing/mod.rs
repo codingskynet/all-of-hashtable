@@ -105,6 +105,10 @@ impl<K: PartialEq + Hash + Clone + Debug, V: Debug, E: Entry<K, Bucket<K, V>>>
         }
         println!("-----------------------------------------------------------------");
     }
+
+    pub fn entry(&self) -> &E {
+        &self.hashtable.entry
+    }
 }
 
 impl<K, V, E, S> OpenAddressingHashTable<K, V, E, S>

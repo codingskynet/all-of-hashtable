@@ -1,10 +1,10 @@
 use all_of_hashtable::{
-    open_addressing::{FcfsDoubleHashing, OpenAddressingHashTable},
+    open_addressing::{Bucket, FcfsDoubleHashing, OpenAddressingHashTable},
     HashMap, INITIAL_SIZE, LOAD_FACTOR,
 };
 use std::{collections::hash_map::DefaultHasher, hash::BuildHasherDefault};
 
-use crate::util::stress_hashmap;
+use crate::util::{draw_stat, stress_hashmap};
 
 #[test]
 fn test_crd_fcfs() {
@@ -34,12 +34,22 @@ fn test_crd_fcfs() {
 
 #[test]
 fn test_stress_fcfs() {
-    let table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
+    let mut table = OpenAddressingHashTable::<u64, u64, _>::new_with_properties(
         BuildHasherDefault::<DefaultHasher>::default(),
         FcfsDoubleHashing::default(),
         INITIAL_SIZE,
         LOAD_FACTOR,
     );
 
-    stress_hashmap(table, 100_000);
+    stress_hashmap(&mut table, 100_000, false);
+
+    #[cfg(feature = "stat")]
+    {
+        let stat = <FcfsDoubleHashing as all_of_hashtable::Entry<u64, Bucket<u64, u64>>>::stat(
+            table.entry(),
+        );
+        println!();
+        stat.print();
+        draw_stat(stat, "output/FcfsDoubleHashing.png");
+    }
 }

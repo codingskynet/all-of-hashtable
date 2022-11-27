@@ -1,12 +1,13 @@
-use std::ptr;
+use std::{cell::RefCell, ptr};
 
-use crate::{Entry, InsertResult, RawHashTable};
+use crate::{Entry, InsertResult, RawHashTable, Stat};
 
 use super::{Bucket, EntryBucket, FCFS, LCFS};
 
 pub struct FcfsLinearProbing {
     step: usize,
     tombstone: bool,
+    stat: RefCell<Stat>,
 }
 
 impl Default for FcfsLinearProbing {
@@ -14,6 +15,7 @@ impl Default for FcfsLinearProbing {
         Self {
             step: 1,
             tombstone: true,
+            stat: RefCell::new(Stat::default()),
         }
     }
 }
@@ -22,12 +24,26 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsLinearProbing {
     fn insert(&mut self, table: &RawHashTable, bucket: Bucket<K, V>) -> InsertResult<Bucket<K, V>> {
         let mut step = 0;
 
+        #[cfg(feature = "stat")]
+        let mut psl = 0;
+
         let offset = || {
             step += self.step;
+
+            #[cfg(feature = "stat")]
+            {
+                psl += 1;
+            }
+
             step
         };
 
-        if let Ok(entry_bucket) = FCFS::lookup(table, &bucket.key, bucket.hash, offset) {
+        let result = FCFS::lookup(table, &bucket.key, bucket.hash, offset);
+
+        #[cfg(feature = "stat")]
+        self.stat.borrow_mut().insert_psl.push(psl);
+
+        if let Ok(entry_bucket) = result {
             match entry_bucket {
                 EntryBucket::Some(_) => InsertResult::AlreadyExist(bucket),
                 EntryBucket::None | EntryBucket::Tombstone => {
@@ -43,12 +59,26 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsLinearProbing {
     fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 
+        #[cfg(feature = "stat")]
+        let mut psl = 0;
+
         let offset = || {
             step += self.step;
+
+            #[cfg(feature = "stat")]
+            {
+                psl += 1;
+            }
+
             step
         };
 
-        if let Ok(entry_bucket) = FCFS::lookup(table, key, hash, offset) {
+        let result = FCFS::lookup(table, key, hash, offset);
+
+        if let Ok(entry_bucket) = result {
+            #[cfg(feature = "stat")]
+            self.stat.borrow_mut().lookup_psl.push(psl);
+
             match entry_bucket {
                 EntryBucket::None => None,
                 EntryBucket::Some(bucket) => Some(bucket),
@@ -62,23 +92,44 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for FcfsLinearProbing {
     fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<Bucket<K, V>, ()> {
         let mut step = 0;
 
+        #[cfg(feature = "stat")]
+        let mut psl = 0;
+
         let offset = || {
             step += self.step;
+
+            #[cfg(feature = "stat")]
+            {
+                psl += 1;
+            }
+
             step
         };
 
-        let entry_bucket = FCFS::remove(table, key, hash, offset, self.tombstone)?;
+        let entry_bucket = FCFS::remove(table, key, hash, offset, self.tombstone);
 
-        match entry_bucket {
-            EntryBucket::Some(bucket) => Ok(bucket),
-            _ => Err(()),
+        #[cfg(feature = "stat")]
+        self.stat.borrow_mut().remove_psl.push(psl);
+
+        if let Ok(entry_bucket) = entry_bucket {
+            match entry_bucket {
+                EntryBucket::Some(bucket) => Ok(bucket),
+                _ => Err(()),
+            }
+        } else {
+            Err(())
         }
+    }
+
+    fn stat(&self) -> Stat {
+        self.stat.borrow().clone()
     }
 }
 
 pub struct LcfsLinearProbing {
     step: usize,
     tombstone: bool,
+    stat: RefCell<Stat>,
 }
 
 impl Default for LcfsLinearProbing {
@@ -86,6 +137,7 @@ impl Default for LcfsLinearProbing {
         Self {
             step: 1,
             tombstone: true,
+            stat: RefCell::new(Stat::default()),
         }
     }
 }
@@ -94,45 +146,95 @@ impl<K: PartialEq, V> Entry<K, Bucket<K, V>> for LcfsLinearProbing {
     fn insert(&mut self, table: &RawHashTable, bucket: Bucket<K, V>) -> InsertResult<Bucket<K, V>> {
         let mut step = 0;
 
+        #[cfg(feature = "stat")]
+        let mut psl = 0;
+
         let offset = || {
             step += self.step;
+
+            #[cfg(feature = "stat")]
+            {
+                psl += 1;
+            }
+
             step
         };
 
-        LCFS::insert(table, offset, bucket, self.tombstone)
+        let result = LCFS::insert(table, offset, bucket, self.tombstone);
+
+        #[cfg(feature = "stat")]
+        self.stat.borrow_mut().insert_psl.push(psl);
+
+        result
     }
 
     fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a Bucket<K, V>> {
         let mut step = 0;
 
+        #[cfg(feature = "stat")]
+        let mut psl = 0;
+
         let offset = || {
             step += self.step;
+
+            #[cfg(feature = "stat")]
+            {
+                psl += 1;
+            }
+
             step
         };
 
-        let entry_bucket = LCFS::lookup(table, key, hash, offset)?;
+        let entry_bucket = LCFS::lookup(table, key, hash, offset);
 
-        if let EntryBucket::Some(bucket) = entry_bucket {
-            Some(&*bucket)
+        #[cfg(feature = "stat")]
+        self.stat.borrow_mut().lookup_psl.push(psl);
+
+        if let Some(entry_bucket) = entry_bucket {
+            if let EntryBucket::Some(bucket) = entry_bucket {
+                Some(&*bucket)
+            } else {
+                unreachable!()
+            }
         } else {
-            unreachable!()
+            None
         }
     }
 
     fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<Bucket<K, V>, ()> {
         let mut step = 0;
 
+        #[cfg(feature = "stat")]
+        let mut psl = 0;
+
         let offset = || {
             step += self.step;
+
+            #[cfg(feature = "stat")]
+            {
+                psl += 1;
+            }
+
             step
         };
 
-        let entry_bucket = LCFS::remove(table, key, hash, offset, self.tombstone)?;
+        let entry_bucket = LCFS::remove(table, key, hash, offset, self.tombstone);
 
-        if let EntryBucket::Some(bucket) = entry_bucket {
-            Ok(bucket)
+        #[cfg(feature = "stat")]
+        self.stat.borrow_mut().remove_psl.push(psl);
+
+        if let Ok(entry_bucket) = entry_bucket {
+            if let EntryBucket::Some(bucket) = entry_bucket {
+                Ok(bucket)
+            } else {
+                unreachable!()
+            }
         } else {
-            unreachable!()
+            Err(())
         }
+    }
+
+    fn stat(&self) -> Stat {
+        self.stat.borrow().clone()
     }
 }

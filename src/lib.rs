@@ -1,7 +1,8 @@
 use std::{
-    hash::{BuildHasher, Hash, BuildHasherDefault},
+    collections::hash_map::DefaultHasher,
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     marker::PhantomData,
-    ptr::NonNull, collections::hash_map::DefaultHasher,
+    ptr::NonNull,
 };
 
 pub mod chaining;
@@ -37,10 +38,46 @@ pub enum InsertResult<T> {
     Full(T),
 }
 
-pub trait Entry<K: PartialEq, B> : Default {
+#[derive(Default, Clone)]
+pub struct Stat {
+    pub insert_psl: Vec<u8>,
+    pub lookup_psl: Vec<u8>,
+    pub remove_psl: Vec<u8>,
+}
+
+impl Stat {
+    pub fn print(&self) {
+        println!("- insert");
+        println!(
+            "total: {}, avg: {}",
+            self.insert_psl.len(),
+            self.insert_psl.iter().map(|x| *x as usize).sum::<usize>() as f64
+                / self.insert_psl.len() as f64
+        );
+
+        println!("- lookup");
+        println!(
+            "total: {}, avg: {}",
+            self.lookup_psl.len(),
+            self.lookup_psl.iter().map(|x| *x as usize).sum::<usize>() as f64
+                / self.lookup_psl.len() as f64
+        );
+
+        println!("- remove");
+        println!(
+            "total: {}, avg: {}",
+            self.remove_psl.len(),
+            self.remove_psl.iter().map(|x| *x as usize).sum::<usize>() as f64
+                / self.remove_psl.len() as f64
+        );
+    }
+}
+
+pub trait Entry<K: PartialEq, B>: Default {
     fn insert(&mut self, table: &RawHashTable, bucket: B) -> InsertResult<B>;
     fn lookup<'a>(&self, table: &'a RawHashTable, key: &K, hash: u64) -> Option<&'a B>;
     fn remove(&mut self, table: &RawHashTable, key: &K, hash: u64) -> Result<B, ()>;
+    fn stat(&self) -> Stat;
 }
 
 pub trait HashMap<K, V, S = BuildHasherDefault<DefaultHasher>> {
